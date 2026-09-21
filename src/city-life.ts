@@ -13,6 +13,42 @@ export function buildingLightLevel(date: Date) {
   return hour >= 22 ? (25 - hour) / 3 : (1 - hour) / 3;
 }
 export const windSpeed = (wind: number) => clamp(wind, -1, 1) * 34;
+export const MAX_TRAFFIC = 40;
+// Local-time scenic profile, not measured traffic. Fractional counts crossfade
+// fixed slots so clock changes never reshuffle positions or reset the playhead.
+const trafficHours = [
+  [0, 12],
+  [2, 8],
+  [5, 8],
+  [7, 24],
+  [8, 40],
+  [9, 40],
+  [10, 26],
+  [16, 26],
+  [18, 40],
+  [19, 40],
+  [20, 28],
+  [22, 20],
+  [24, 12],
+];
+export function trafficLevel(date: Date) {
+  const hour =
+    date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
+  let i = 0;
+  while (hour > trafficHours[i + 1][0]) i++;
+  const [start, a] = trafficHours[i],
+    [end, b] = trafficHours[i + 1];
+  const t = (hour - start) / (end - start);
+  const smooth = t * t * (3 - 2 * t);
+  return a + (b - a) * smooth;
+}
+export function trafficPresence(index: number, level: number) {
+  // Activate evenly distributed opposite-lane pairs, not a cluster at one end.
+  const pair = Math.floor(index / 2);
+  const rank =
+    ((((pair % 5) + 3) % 5) * 4 + Math.floor(pair / 5)) * 2 + (index % 2);
+  return clamp(level - rank);
+}
 // Street east of the rail corridor, traced in normalized source-photo coordinates.
 const road = [
   [0.587, 1.02],
@@ -69,7 +105,7 @@ export function trafficPosition(index: number, seconds: number) {
   // Same speed within each lane prevents arbitrary overtaking/overlapping light pairs.
   const speedKmh = direction > 0 ? 18 : 21;
   const traveled =
-    ((index + 0.5) / 22) * TRAFFIC_ROUTE_METERS +
+    ((index + 0.5) / MAX_TRAFFIC) * TRAFFIC_ROUTE_METERS +
     seconds * (speedKmh / 3.6) * direction;
   const meters =
     ((traveled % TRAFFIC_ROUTE_METERS) + TRAFFIC_ROUTE_METERS) %
@@ -301,7 +337,9 @@ export class CityLife {
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.globalAlpha = 1;
     const level = buildingLightLevel(now);
+    const traffic = trafficLevel(now);
     this.city.dataset.lights = level.toFixed(3);
+    this.city.dataset.traffic = traffic.toFixed(2);
     this.city.dataset.localHour = String(now.getHours());
     if (!this.enabled) c.drawImage(this.bright, 0, 0);
     else {
@@ -360,11 +398,11 @@ export class CityLife {
     // visible city and the glass refraction source; never add a sharp overlay.
     for (const target of [c, display]) {
       target.setTransform(this.scale, 0, 0, this.scale, 0, 0);
-      const movingLights = this.enabled ? this.drawLights(target) : [];
+      const movingLights = this.enabled ? this.drawLights(target, traffic) : [];
       this.outsideRain.draw(target, [...this.lights, ...movingLights]);
     }
   }
-  private drawLights(c: CanvasRenderingContext2D) {
+  private drawLights(c: CanvasRenderingContext2D, traffic: number) {
     for (const [i, light] of this.lights.entries()) {
       const { x, y, radius, warm } = light;
       const color = warm ? "246,193,123" : "162,206,225";
@@ -387,10 +425,13 @@ export class CityLife {
       c.fillRect(x - r, y + 2, r * 2, r * 12);
     }
     const lights: RainLight[] = [];
-    for (let i = 0; i < 22; i++) {
+    for (let i = 0; i < MAX_TRAFFIC; i++) {
+      const presence = trafficPresence(i, traffic);
+      if (presence === 0) continue;
       const p = trafficPosition(i, this.time),
         dir = p.direction;
-      const lane = dir * 0.0017;
+      const lane =
+        dir * (0.0016 + 0.0018 * (1 - p.meters / TRAFFIC_ROUTE_METERS));
       const x = this.ox + (p.x + lane) * this.photoW,
         y = this.oy + p.y * this.photoH;
       const a = trafficPointAtDistance(Math.max(0, p.meters - 5));
@@ -408,14 +449,14 @@ export class CityLife {
         this.intensity,
         this.photoW / 1536,
         dir > 0,
-        p.opacity,
+        p.opacity * presence,
         angle,
       );
       lights.push({
         x,
         y,
         radius: 5 + optics.separation * 3,
-        strength: 0.3 * optics.transmission * p.opacity,
+        strength: 0.3 * optics.transmission * p.opacity * presence,
         warm: dir > 0,
       });
     }

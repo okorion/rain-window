@@ -6,7 +6,40 @@ import {
   trafficPosition,
   trafficPointAtDistance,
   TRAFFIC_ROUTE_METERS,
+  MAX_TRAFFIC,
+  trafficLevel,
+  trafficPresence,
 } from "../../src/city-life";
+
+it("현지 시간 교통량은 새벽 최소·출퇴근 최대이고 자정에 연속", () => {
+  const at = (hour: number) => trafficLevel(new Date(2026, 8, 22, hour));
+  expect(at(3)).toBe(8);
+  expect(at(8)).toBe(40);
+  expect(at(12)).toBe(26);
+  expect(at(18)).toBe(40);
+  expect(at(22)).toBe(20);
+  expect(
+    Math.abs(trafficLevel(new Date(2026, 8, 22, 23, 59, 59)) - at(0)),
+  ).toBeLessThan(0.001);
+});
+it("차량 순위는 중복 없이 분산되고 시간대 전환은 밝기만 바꿈", () => {
+  for (const level of [8, 12, 26, 31.5, 40]) {
+    const slots = Array.from({ length: MAX_TRAFFIC }, (_, i) =>
+      trafficPresence(i, level),
+    );
+    expect(slots.reduce((a, b) => a + b, 0)).toBeCloseTo(level);
+  }
+  const overnight = Array.from({ length: MAX_TRAFFIC }, (_, i) =>
+    trafficPresence(i, 8),
+  );
+  for (let quarter = 0; quarter < 4; quarter++)
+    expect(
+      overnight.slice(quarter * 10, quarter * 10 + 10).some((x) => x > 0),
+    ).toBe(true);
+  const before = trafficPosition(12, 15);
+  trafficLevel(new Date(2026, 8, 22, 8));
+  expect(trafficPosition(12, 15)).toEqual(before);
+});
 
 it("초 단위 이동 거리는 km/h 변환과 일치하고 경로 통과는 3~4분", () => {
   for (const i of [10, 11]) {

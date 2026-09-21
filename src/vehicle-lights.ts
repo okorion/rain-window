@@ -9,19 +9,20 @@ export function vehicleOptics(
   const rain = clamp(intensity);
   const distance = 450 + clamp(meters, 0, 1200);
   const projection = 450 / distance;
-  // Beer–Lambert attenuation through rain/mist. Unresolved lamps also lose
-  // received flux with distance squared; do not brighten the enlarged halo.
+  // Beer–Lambert attenuation and distance-squared flux, followed by a fixed
+  // photographic exposure curve. Linear display mapping hid almost every car.
   const transmission = Math.exp(-(0.00012 + 0.00095 * rain ** 1.35) * distance);
-  const sigma = (0.65 + rain * (0.55 + distance * 0.0003)) * imageScale;
+  const sigma = (1.1 + rain * (0.35 + distance * 0.00016)) * imageScale;
   const flux = projection ** 2 * transmission;
-  const peak = 0.72 * flux * ((0.65 * imageScale) / sigma) ** 2;
+  const exposed = flux / (flux + 0.018);
+  const peak = 0.94 * exposed * ((1.1 * imageScale) / sigma) ** 2;
   return {
     transmission,
     sigma,
     peak,
-    separation: 3.4 * projection * imageScale,
-    reflectionLength: (3 + 9 * projection) * imageScale,
-    reflectionPeak: peak * (0.1 + rain * 0.06),
+    separation: 5.6 * projection * imageScale,
+    reflectionLength: (4 + 11 * projection) * imageScale,
+    reflectionPeak: peak * (0.24 + rain * 0.05),
   };
 }
 
@@ -64,7 +65,7 @@ export function drawVehicleLights(
   const o = vehicleOptics(meters, intensity, imageScale);
   // Neutral white headlamps, red running lamps (not amber street lamps).
   const color = away ? "225,63,48" : "220,231,237";
-  const power = opacity * (away ? 0.7 : 1);
+  const power = opacity * (away ? 0.85 : 1);
   const dx = (Math.cos(transverseAngle) * o.separation) / 2;
   const dy = (Math.sin(transverseAngle) * o.separation) / 2;
   for (const side of [-1, 1]) {

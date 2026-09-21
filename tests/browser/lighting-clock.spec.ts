@@ -9,7 +9,14 @@ test("차량이 실제 도로에서 이동하고 정지·재개되며 새벽에�
     const frames: { x: number; y: number }[] = [];
     Object.assign(window, { trafficFrames: frames });
     const original = CanvasRenderingContext2D.prototype.fillRect;
-    let calls = 0;
+    let captured = false;
+    const setTransform = CanvasRenderingContext2D.prototype.setTransform;
+    CanvasRenderingContext2D.prototype.setTransform = function (
+      ...args: Parameters<typeof setTransform>
+    ) {
+      if (this.canvas.id === "city") captured = false;
+      return setTransform.apply(this, args);
+    };
     CanvasRenderingContext2D.prototype.fillRect = function (x, y, w, h) {
       if (
         this.canvas.id === "city" &&
@@ -19,8 +26,9 @@ test("차량이 실제 도로에서 이동하고 정지·재개되며 새벽에�
         w === 6 &&
         h === 6
       ) {
-        // Two lamp footprints and six asphalt glints per car, 22 cars.
-        if (calls++ % 176 === 0) {
+        // Track one lamp in each frame; population varies with local time.
+        if (!captured) {
+          captured = true;
           const transform = this.getTransform();
           frames.push({ x: transform.e, y: transform.f });
           if (frames.length > 100) frames.shift();
