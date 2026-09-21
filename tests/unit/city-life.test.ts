@@ -1,5 +1,34 @@
 import { expect, it } from "vitest";
-import { buildingLightLevel, roadPoint, windSpeed } from "../../src/city-life";
+import {
+  buildingLightLevel,
+  roadPoint,
+  windSpeed,
+  trafficPosition,
+  trafficPointAtDistance,
+  TRAFFIC_ROUTE_METERS,
+} from "../../src/city-life";
+
+it("초 단위 이동 거리는 km/h 변환과 일치하고 경로 통과는 3~4분", () => {
+  for (const i of [10, 11]) {
+    const a = trafficPosition(i, 0),
+      b = trafficPosition(i, 10);
+    expect(b.meters - a.meters).toBeCloseTo(
+      ((a.direction * a.speedKmh) / 3.6) * 10,
+    );
+    const seconds = TRAFFIC_ROUTE_METERS / (a.speedKmh / 3.6);
+    expect(seconds).toBeGreaterThan(200);
+    expect(seconds).toBeLessThanOrEqual(240);
+    expect(trafficPosition(i, seconds).meters).toBeCloseTo(a.meters);
+  }
+});
+it("동일 거리 이동 시 먼 차량의 화면 이동량이 더 작으며 도로 양 끝을 유지", () => {
+  expect(trafficPointAtDistance(0).y).toBeCloseTo(roadPoint(0).y);
+  expect(trafficPointAtDistance(1200).x).toBeCloseTo(roadPoint(1).x);
+  const near = trafficPointAtDistance(100).y - trafficPointAtDistance(110).y;
+  const far = trafficPointAtDistance(1000).y - trafficPointAtDistance(1010).y;
+  expect(near).toBeGreaterThan(far * 3);
+  expect(far).toBeGreaterThan(0);
+});
 
 it.each([
   [0, 1 / 3],

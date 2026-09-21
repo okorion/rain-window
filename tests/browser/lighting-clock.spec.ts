@@ -41,7 +41,13 @@ test("차량이 실제 도로에서 이동하고 정지·재개되며 새벽에�
       positions.at(-1)!.x - positions[0].x,
       positions.at(-1)!.y - positions[0].y,
     ),
-  ).toBeGreaterThan(4);
+  ).toBeGreaterThan(0.2);
+  expect(
+    Math.hypot(
+      positions.at(-1)!.x - positions[0].x,
+      positions.at(-1)!.y - positions[0].y,
+    ),
+  ).toBeLessThan(10);
   await page.getByRole("button", { name: "일시정지", exact: true }).click();
   const frame = () =>
     page.locator("#city").evaluate((c) => (c as HTMLCanvasElement).toDataURL());

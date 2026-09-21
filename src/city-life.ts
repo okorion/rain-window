@@ -32,6 +32,55 @@ export function roadPoint(progress: number) {
     y: road[i][1] * (1 - t) + road[i + 1][1] * t,
   };
 }
+
+// Photo calibration assumptions, not measured Tokyo traffic/geography.
+// A level ground plane projects depth reciprocally below the vanishing horizon.
+export const TRAFFIC_ROUTE_METERS = 1200;
+const horizon = 0.36;
+const groundRoad = road.map(([x, y]) => ({
+  x: ((x - 0.5) * 1.5) / (y - horizon),
+  z: 3 / (y - horizon),
+}));
+const groundDistances = [0];
+for (let i = 1; i < groundRoad.length; i++) {
+  groundDistances.push(
+    groundDistances[i - 1] +
+      Math.hypot(
+        groundRoad[i].x - groundRoad[i - 1].x,
+        groundRoad[i].z - groundRoad[i - 1].z,
+      ),
+  );
+}
+const groundLength = groundDistances.at(-1)!;
+export function trafficPointAtDistance(meters: number) {
+  const distance = clamp(meters / TRAFFIC_ROUTE_METERS) * groundLength;
+  let i = 0;
+  while (i < groundRoad.length - 2 && distance > groundDistances[i + 1]) i++;
+  const t =
+    (distance - groundDistances[i]) /
+    (groundDistances[i + 1] - groundDistances[i]);
+  const x = groundRoad[i].x * (1 - t) + groundRoad[i + 1].x * t;
+  const z = groundRoad[i].z * (1 - t) + groundRoad[i + 1].z * t;
+  return { x: 0.5 + (x * (3 / z)) / 1.5, y: horizon + 3 / z };
+}
+export function trafficPosition(index: number, seconds: number) {
+  const direction = index % 2 ? 1 : -1;
+  // Same speed within each lane prevents arbitrary overtaking/overlapping light pairs.
+  const speedKmh = direction > 0 ? 18 : 21;
+  const traveled =
+    ((index + 0.5) / 22) * TRAFFIC_ROUTE_METERS +
+    seconds * (speedKmh / 3.6) * direction;
+  const meters =
+    ((traveled % TRAFFIC_ROUTE_METERS) + TRAFFIC_ROUTE_METERS) %
+    TRAFFIC_ROUTE_METERS;
+  return {
+    ...trafficPointAtDistance(meters),
+    meters,
+    speedKmh,
+    direction,
+    opacity: Math.min(1, meters / 25, (TRAFFIC_ROUTE_METERS - meters) / 25),
+  };
+}
 function onRoad(x: number, y: number) {
   for (let i = 0; i < road.length - 1; i++) {
     const [ax, ay] = road[i],
@@ -335,16 +384,15 @@ export class CityLife {
     }
     const lights: RainLight[] = [];
     for (let i = 0; i < 22; i++) {
-      const dir = i % 2 ? 1 : -1;
-      const progress =
-        (((i / 22 + this.time * (0.018 + (i % 5) * 0.0017) * dir) % 1) + 1) % 1;
-      const p = roadPoint(progress),
-        lane = dir * 0.0017;
+      const p = trafficPosition(i, this.time),
+        dir = p.direction;
+      const lane = dir * 0.0017;
       const x = this.ox + (p.x + lane) * this.photoW,
         y = this.oy + p.y * this.photoH;
       const depth = clamp((p.y - 0.6) / 0.4),
         r = 0.9 + depth * 1.3;
       const color = dir > 0 ? "255,125,98" : "255,237,197";
+      c.globalAlpha = p.opacity;
       const glow = c.createRadialGradient(x, y, 0, x, y, r * 5);
       glow.addColorStop(0, `rgba(${color},0.55)`);
       glow.addColorStop(0.3, `rgba(${color},0.12)`);
@@ -354,7 +402,14 @@ export class CityLife {
       c.fillStyle = dir > 0 ? "#fba18b" : "#fff5dc";
       c.fillRect(x - r, y, r * 0.7, r * 0.85);
       c.fillRect(x + r * 0.4, y, r * 0.7, r * 0.85);
-      lights.push({ x, y, radius: r * 13, strength: 0.65, warm: true });
+      c.globalAlpha = 1;
+      lights.push({
+        x,
+        y,
+        radius: r * 13,
+        strength: 0.65 * p.opacity,
+        warm: true,
+      });
     }
     return lights;
   }
