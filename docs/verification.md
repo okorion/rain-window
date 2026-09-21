@@ -1,5 +1,20 @@
 # 검증 기록
 
+## 창밖 원거리 비 · 2026-09-22
+
+- 도시와 유리 사이에 세 깊이의 빗줄기와 옅은 빗안개 추가. 길이·속도·두께·밝기 차이로 거리를 표현하고 바람 양방향·무풍에 반응. 같은 비를 굴절용 장면에도 합성.
+- 비 강도 0에서는 창밖 비·빗안개 제거, 기존 유리 방울 유지. 일시정지·reduced-motion·비활성 탭은 기존 단일 렌더 루프를 함께 정지. 사진 실패 시 기본 야경에서도 동작.
+- 추가 외부 자산·의존성 없음. 창밖 빗줄기 최대 420개(모바일)/900개(데스크톱), 도시 합성의 기존 15/20fps와 픽셀 예산 유지.
+- lint·typecheck·build 및 단위 검사 33개·브라우저 검사 18개 통과. 추가 검사는 밀도 상한, 바람 방향, 시간 도약 방지, 120초 후 화면 범위 유지, 사진 성공/실패에서 강도 0↔100·정지·재개를 확인.
+- 실제 데스크톱·모바일 화면과 [실행 영상](screenshots/rain-motion.webm) 갱신. 아래 캡처는 동일 뷰포트·비 50%·오른쪽 바람 20%·현지 낮 12시 상태. 실제 프레임 시각에는 스케줄러 오차가 있음.
+
+| 대상 | 변경 전 | 변경 후 | 판단 포인트 |
+| --- | --- | --- | --- |
+| 데스크톱 1440×900 | ![이전](screenshots/desktop-before-outside-rain.png) | ![이후](screenshots/desktop.png) | 도시 앞에 내리는 가는 비, 유리 방울과 초점 차이 |
+| 모바일 390×844 | ![이전](screenshots/mobile-before-outside-rain.png) | ![이후](screenshots/mobile.png) | 세로 화면의 비 밀도와 컨트롤 가독성 |
+
+실제 비 영상이 아닌 합성 효과이며 건물별 비의 가림·조명 산란은 물리적으로 계산하지 않는다. 모바일은 Chromium 에뮬레이션이며 실기기·Safari·Firefox·장시간 열/배터리 성능은 미검증.
+
 ## 바람·살아 움직이는 도시·현지 시간 조명 · 2026-09-21
 
 - 바람 슬라이더 −100~100(왼쪽·무풍·오른쪽) 추가. 이동 방울·충격 미세 튀김과 구름의 횡이동에 적용. 모바일은 날씨 조절과 재생·음향 버튼을 두 줄로 배치.
@@ -11,8 +26,8 @@
 
 | 대상 | 변경 전 | 변경 후 | 판단 포인트 |
 | --- | --- | --- | --- |
-| 데스크톱 1440×900 | ![이전](screenshots/desktop-before-city-life.png) | ![이후](screenshots/desktop.png) | 바람 조절·구름·차량·창문 변화 |
-| 모바일 390×844 | ![이전](screenshots/mobile-before-city-life.png) | ![이후](screenshots/mobile.png) | 두 줄 컨트롤과 터치 영역 |
+| 데스크톱 1440×900 | ![이전](screenshots/desktop-before-city-life.png) | ![이후](screenshots/desktop-before-outside-rain.png) | 바람 조절·구름·차량·창문 변화 |
+| 모바일 390×844 | ![이전](screenshots/mobile-before-city-life.png) | ![이후](screenshots/mobile-before-outside-rain.png) | 두 줄 컨트롤과 터치 영역 |
 | 시간별 조명 | ![현지 낮 12시](screenshots/city-daytime.png) | ![현지 새벽 03시](screenshots/city-late-night.png) | 하늘·도로를 유지하며 사무실 소등 |
 
 도시 합성은 데스크톱 최대 20fps·모바일 최대 15fps, 빗물은 기존 60/30fps 상한. 실제 스케줄의 하루 전체를 기다린 검사가 아닌 브라우저 현지 시각을 고정·전환한 검증이다.

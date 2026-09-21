@@ -107,6 +107,7 @@ function resize() {
     cityLife ??= new CityLife(city, lensScene);
     cityLife.resize(window.innerWidth, window.innerHeight, photo);
     cityLife.setWind(wind);
+    cityLife.setIntensity(state.intensity);
     rain ??= new Rain(
       rainCanvas,
       lensScene,
@@ -138,6 +139,8 @@ sound.addEventListener("click", () => {
 intensity.addEventListener("input", () => {
   state.intensity = Number(intensity.value) / 100;
   try {
+    cityLife?.setIntensity(state.intensity);
+    rain?.refreshScene();
     rain?.setIntensity(state.intensity);
   } catch {
     graphicsFailure();

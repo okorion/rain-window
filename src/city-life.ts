@@ -1,5 +1,6 @@
 import { drawCity, resolution, seeded } from "./scene";
 import { clamp } from "./state";
+import { OutsideRain } from "./outside-rain";
 
 /** Device-local wall clock; unrelated to the animation clock or location APIs. */
 export function buildingLightLevel(date: Date) {
@@ -51,6 +52,7 @@ export class CityLife {
   private bright = document.createElement("canvas");
   private dark = document.createElement("canvas");
   private clouds = document.createElement("canvas");
+  private outsideRain = new OutsideRain();
   private w = 0;
   private scale = 1;
   private photoW = 0;
@@ -115,6 +117,7 @@ export class CityLife {
     this.w = w;
     this.scale = resolution(w, h);
     this.elapsed = 0;
+    this.outsideRain.resize(w, h);
     drawCity(this.bright, w, h, photo, 0.6);
     this.enabled = Boolean(photo);
     for (const c of [this.city, this.lens, this.dark]) {
@@ -186,9 +189,15 @@ export class CityLife {
   }
   setWind(value: number) {
     this.wind = clamp(value, -1, 1);
+    this.outsideRain.setWind(value);
+  }
+  setIntensity(value: number) {
+    this.outsideRain.setIntensity(value);
+    this.render(new Date());
   }
   step(dt: number) {
-    if (!this.enabled || dt <= 0) return false;
+    if (dt <= 0) return false;
+    this.outsideRain.step(dt);
     this.time += dt;
     this.elapsed += dt;
     this.cloudX += (3 + windSpeed(this.wind) * 0.6) * dt;
@@ -282,5 +291,10 @@ export class CityLife {
     display.filter = `blur(${2.6 * this.scale}px)`;
     display.drawImage(this.lens, 0, 0);
     display.filter = "none";
+    // Outside rain is softer than glass droplets but sharper than the distant city.
+    for (const target of [c, display]) {
+      target.setTransform(this.scale, 0, 0, this.scale, 0, 0);
+      this.outsideRain.draw(target, level);
+    }
   }
 }
