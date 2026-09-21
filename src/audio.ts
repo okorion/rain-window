@@ -1,4 +1,5 @@
 import { audible, type ExperienceState } from "./state";
+import { fillRainChannel } from "./rain-sound";
 
 export class RainAudio {
   private context: AudioContext | null = null;
@@ -19,28 +20,20 @@ export class RainAudio {
     const c = this.factory();
     this.context = c;
     try {
-      const buffer = c.createBuffer(2, c.sampleRate * 8, c.sampleRate);
+      const buffer = c.createBuffer(2, c.sampleRate * 24, c.sampleRate);
       for (let ch = 0; ch < 2; ch++) {
-        const data = buffer.getChannelData(ch);
-        let low = 0;
-        for (let i = 0; i < data.length; i++) {
-          const white = Math.random() * 2 - 1;
-          low = (low + 0.025 * white) / 1.025;
-          data[i] = (white * 0.35 + low * 3) * 0.65;
-        }
-        // Blend the join so the eight-second loop has no hard edge.
-        const fade = Math.min(2048, data.length / 4);
-        for (let i = 0; i < fade; i++) {
-          const t = i / fade;
-          data[i] = data[data.length - fade + i] * (1 - t) + data[i] * t;
-        }
+        fillRainChannel(
+          buffer.getChannelData(ch),
+          c.sampleRate,
+          3127 + ch * 917,
+        );
       }
       this.source = c.createBufferSource();
       this.source.buffer = buffer;
       this.source.loop = true;
       this.filter = c.createBiquadFilter();
       this.filter.type = "lowpass";
-      this.filter.frequency.value = 2400;
+      this.filter.frequency.value = 1350;
       this.gain = c.createGain();
       this.gain.gain.value = 0;
       this.source.connect(this.filter);
@@ -66,12 +59,12 @@ export class RainAudio {
       if (!c || !this.gain) return;
       this.gain.gain.cancelScheduledValues(c.currentTime);
       this.gain.gain.setTargetAtTime(
-        this.wanted ? state.volume * (0.12 + 0.3 * state.intensity) : 0,
+        this.wanted ? state.volume * (0.08 + 0.14 * state.intensity) : 0,
         c.currentTime,
         0.05,
       );
       this.filter!.frequency.setTargetAtTime(
-        1400 + state.intensity * 2000,
+        950 + state.intensity * 850,
         c.currentTime,
         0.1,
       );

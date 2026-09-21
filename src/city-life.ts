@@ -1,6 +1,6 @@
 import { drawCity, resolution, seeded } from "./scene";
 import { clamp } from "./state";
-import { OutsideRain } from "./outside-rain";
+import { OutsideRain, type RainLight } from "./outside-rain";
 
 /** Device-local wall clock; unrelated to the animation clock or location APIs. */
 export function buildingLightLevel(date: Date) {
@@ -14,13 +14,13 @@ export function buildingLightLevel(date: Date) {
 export const windSpeed = (wind: number) => clamp(wind, -1, 1) * 34;
 // Street east of the rail corridor, traced in normalized source-photo coordinates.
 const road = [
-  [0.645, 1.02],
-  [0.627, 0.946],
-  [0.61, 0.88],
-  [0.596, 0.822],
-  [0.575, 0.751],
-  [0.559, 0.689],
-  [0.545, 0.642],
+  [0.587, 1.02],
+  [0.587, 0.946],
+  [0.593, 0.88],
+  [0.588, 0.822],
+  [0.573, 0.751],
+  [0.572, 0.689],
+  [0.558, 0.642],
   [0.532, 0.605],
 ];
 export function roadPoint(progress: number) {
@@ -53,6 +53,7 @@ export class CityLife {
   private dark = document.createElement("canvas");
   private clouds = document.createElement("canvas");
   private outsideRain = new OutsideRain();
+  private lights: RainLight[] = [];
   private w = 0;
   private scale = 1;
   private photoW = 0;
@@ -120,6 +121,10 @@ export class CityLife {
     this.outsideRain.resize(w, h);
     drawCity(this.bright, w, h, photo, 0.6);
     this.enabled = Boolean(photo);
+    this.lights = [
+      { x: w * 0.32, y: h * 0.59, radius: w * 0.17, strength: 0.7, warm: true },
+      { x: w * 0.7, y: h * 0.5, radius: w * 0.16, strength: 0.5, warm: false },
+    ];
     for (const c of [this.city, this.lens, this.dark]) {
       c.width = this.bright.width;
       c.height = this.bright.height;
@@ -133,6 +138,34 @@ export class CityLife {
       this.photoH = photo.naturalHeight * cover;
       this.ox = (w - this.photoW) / 2;
       this.oy = (h - this.photoH) / 2;
+      // Permanent street/shop lights stay on when office windows turn off.
+      this.lights = Array.from({ length: 15 }, (_, i) => {
+        const p = roadPoint(0.06 + (i / 14) * 0.88);
+        const depth = clamp((p.y - 0.6) / 0.4);
+        return {
+          x: this.ox + (p.x + (i % 2 ? -0.003 : 0.003)) * this.photoW,
+          y: this.oy + p.y * this.photoH,
+          radius: 15 + depth * 30,
+          strength: 0.95,
+          warm: true,
+        };
+      });
+      for (const [x, y, r, warm] of [
+        [0.177, 0.499, 0.045, 1],
+        [0.356, 0.508, 0.04, 1],
+        [0.486, 0.52, 0.055, 0],
+        [0.655, 0.657, 0.04, 1],
+        [0.784, 0.699, 0.06, 0],
+        [0.88, 0.546, 0.04, 1],
+        [0.245, 0.694, 0.045, 0],
+      ])
+        this.lights.push({
+          x: this.ox + x * this.photoW,
+          y: this.oy + y * this.photoH,
+          radius: this.photoW * r,
+          strength: 0.6,
+          warm: Boolean(warm),
+        });
       const ctx = this.dark.getContext("2d")!;
       ctx.drawImage(this.bright, 0, 0);
       const data = ctx.getImageData(0, 0, this.dark.width, this.dark.height);
@@ -160,13 +193,13 @@ export class CityLife {
             clamp((py - 0.375) / 0.025);
           // Keep diffuse facade detail instead of turning bright windows into black holes.
           data.data[i] = Math.round(
-            r * (1 - emission) + Math.min(r, 10) * emission,
+            r * (1 - emission) + Math.min(r, 15) * emission,
           );
           data.data[i + 1] = Math.round(
-            g * (1 - emission) + Math.min(g, 19) * emission,
+            g * (1 - emission) + Math.min(g, 25) * emission,
           );
           data.data[i + 2] = Math.round(
-            b * (1 - emission) + Math.min(b, 24) * emission,
+            b * (1 - emission) + Math.min(b, 33) * emission,
           );
           if (
             x % 9 === 0 &&
@@ -265,36 +298,64 @@ export class CityLife {
       }
       c.restore();
       c.globalAlpha = 1;
-      for (let i = 0; i < 22; i++) {
-        const dir = i % 2 ? 1 : -1;
-        const progress =
-          (((i / 22 + this.time * (0.008 + (i % 5) * 0.0009) * dir) % 1) + 1) %
-          1;
-        const p = roadPoint(progress),
-          lane = dir * 0.0015;
-        const x = this.ox + (p.x + lane) * this.photoW,
-          y = this.oy + p.y * this.photoH;
-        const depth = clamp((p.y - 0.6) / 0.4),
-          r = 0.5 + depth * 1.25;
-        const glow = c.createRadialGradient(x, y, 0, x, y, r * 4);
-        glow.addColorStop(0, dir > 0 ? "#ff987fc0" : "#ffedcbd9");
-        glow.addColorStop(1, "transparent");
-        c.fillStyle = glow;
-        c.fillRect(x - r * 4, y - r * 4, r * 8, r * 8);
-        c.fillStyle = dir > 0 ? "#fba18b" : "#fff5dc";
-        c.fillRect(x - r, y, r * 0.7, r * 0.8);
-        c.fillRect(x + r * 0.4, y, r * 0.7, r * 0.8);
-      }
     }
     display.setTransform(1, 0, 0, 1, 0, 0);
     display.clearRect(0, 0, this.city.width, this.city.height);
     display.filter = `blur(${2.6 * this.scale}px)`;
     display.drawImage(this.lens, 0, 0);
     display.filter = "none";
-    // Outside rain is softer than glass droplets but sharper than the distant city.
+    // Light cores and moving cars retain their own focus instead of vanishing in city blur.
     for (const target of [c, display]) {
       target.setTransform(this.scale, 0, 0, this.scale, 0, 0);
-      this.outsideRain.draw(target, level);
+      const movingLights = this.enabled ? this.drawLights(target) : [];
+      this.outsideRain.draw(target, [...this.lights, ...movingLights]);
     }
+  }
+  private drawLights(c: CanvasRenderingContext2D) {
+    for (const [i, light] of this.lights.entries()) {
+      const { x, y, radius, warm } = light;
+      const color = warm ? "246,193,123" : "162,206,225";
+      const glow = c.createRadialGradient(x, y, 0, x, y, radius);
+      glow.addColorStop(0, `rgba(${color},${i < 15 ? 0.2 : 0.075})`);
+      glow.addColorStop(0.25, `rgba(${color},0.035)`);
+      glow.addColorStop(1, `rgba(${color},0)`);
+      c.fillStyle = glow;
+      c.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+      const r = i < 15 ? 0.8 + (1 - i / 15) * 0.7 : 1;
+      c.fillStyle = `rgba(${color},0.8)`;
+      c.beginPath();
+      c.ellipse(x, y, r * 1.5, r, 0, 0, Math.PI * 2);
+      c.fill();
+      // Small wet-road reflection, aligned vertically below the lamp.
+      const reflection = c.createLinearGradient(x, y, x, y + r * 12);
+      reflection.addColorStop(0, `rgba(${color},0.16)`);
+      reflection.addColorStop(1, `rgba(${color},0)`);
+      c.fillStyle = reflection;
+      c.fillRect(x - r, y + 2, r * 2, r * 12);
+    }
+    const lights: RainLight[] = [];
+    for (let i = 0; i < 22; i++) {
+      const dir = i % 2 ? 1 : -1;
+      const progress =
+        (((i / 22 + this.time * (0.018 + (i % 5) * 0.0017) * dir) % 1) + 1) % 1;
+      const p = roadPoint(progress),
+        lane = dir * 0.0017;
+      const x = this.ox + (p.x + lane) * this.photoW,
+        y = this.oy + p.y * this.photoH;
+      const depth = clamp((p.y - 0.6) / 0.4),
+        r = 0.9 + depth * 1.3;
+      const color = dir > 0 ? "255,125,98" : "255,237,197";
+      const glow = c.createRadialGradient(x, y, 0, x, y, r * 5);
+      glow.addColorStop(0, `rgba(${color},0.55)`);
+      glow.addColorStop(0.3, `rgba(${color},0.12)`);
+      glow.addColorStop(1, `rgba(${color},0)`);
+      c.fillStyle = glow;
+      c.fillRect(x - r * 5, y - r * 5, r * 10, r * 10);
+      c.fillStyle = dir > 0 ? "#fba18b" : "#fff5dc";
+      c.fillRect(x - r, y, r * 0.7, r * 0.85);
+      c.fillRect(x + r * 0.4, y, r * 0.7, r * 0.85);
+      lights.push({ x, y, radius: r * 13, strength: 0.65, warm: true });
+    }
+    return lights;
   }
 }

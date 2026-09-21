@@ -133,6 +133,18 @@ h1 {
   background: #c5baa0;
   box-shadow: 0 0 10px #dbbd8755;
 }
+#clock {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  color: #ded8c6;
+  font-size: 16px;
+  margin-left: 8px;
+}
+@media (max-width: 1100px) {
+  .scene-caption {
+    display: none;
+  }
+}
 .controls {
   position: absolute;
   z-index: 6;
@@ -456,6 +468,16 @@ footer {
     bottom: 212px;
   }
   .scene-label {
+    display: flex;
+    right: 27px;
+    top: 36px;
+  }
+  .scene-caption,
+  .scene-label .live-dot {
     display: none;
+  }
+  #clock {
+    font-size: 13px;
+    margin-left: 0;
   }
 }

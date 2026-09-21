@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { OutsideRain } from "../../src/outside-rain";
+import { OutsideRain, rainIllumination } from "../../src/outside-rain";
 
 describe("창밖의 비", () => {
+  it("광원 밖의 비는 보이지 않고 광원 중심으로 부드럽게 드러난다", () => {
+    const lights = [{ x: 100, y: 200, radius: 50, strength: 0.8, warm: true }];
+    expect(rainIllumination(100, 0, lights).level).toBe(0);
+    expect(rainIllumination(100, 200, lights).level).toBe(0.8);
+    expect(rainIllumination(125, 200, lights).level).toBeLessThan(0.8);
+    expect(rainIllumination(149.99, 200, lights).level).toBeLessThan(0.00001);
+    expect(rainIllumination(100, 200, lights).warm).toBe(1);
+  });
   it("강도 0은 비를 없애고 모바일·대형 화면에도 상한을 유지한다", () => {
     const rain = new OutsideRain();
     for (const [w, h, cap] of [

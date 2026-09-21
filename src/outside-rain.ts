@@ -3,6 +3,29 @@ import { clamp } from "./state";
 
 const wrap = (n: number, span: number) => ((n % span) + span) % span;
 
+export interface RainLight {
+  x: number;
+  y: number;
+  radius: number;
+  strength: number;
+  warm: boolean;
+}
+export function rainIllumination(x: number, y: number, lights: RainLight[]) {
+  let level = 0,
+    warmth = 0;
+  for (const light of lights) {
+    const d = Math.hypot(
+      (x - light.x) / light.radius,
+      (y - light.y) / (light.radius * 1.3),
+    );
+    if (d >= 1) continue;
+    const amount = (1 - d * d) ** 2 * light.strength;
+    level += amount;
+    if (light.warm) warmth += amount;
+  }
+  return { level: clamp(level), warm: warmth / Math.max(level, 0.001) };
+}
+
 /** Three depth bands between the skyline and the glass, in CSS pixels. */
 export class OutsideRain {
   private random = seeded(731);
@@ -51,18 +74,19 @@ export class OutsideRain {
       const { depth, speed, phase } = drop;
       const vy = (65 + depth * 145) * speed;
       const vx = this.wind * (35 + depth * 90);
-      const x =
-        wrap(
-          drop.x +
-            this.drift * (35 + depth * 90) +
-            Math.sin(this.time * 0.65 + phase) * depth * 5,
-          this.w + 160,
-        ) - 80;
-      const y = wrap(drop.y + this.time * vy, this.h + 100) - 50;
-      const exposure = 0.055 + depth * 0.075;
+      const travelX =
+        drop.x +
+        this.drift * (35 + depth * 90) +
+        Math.sin(this.time * 0.65 + phase) * depth * 5;
+      const travelY = drop.y + this.time * vy;
+      const x = wrap(travelX, this.w + 160) - 80;
+      const y = wrap(travelY, this.h + 100) - 50;
+      const exposure = 0.025 + depth * 0.045;
       return {
         x,
         y,
+        travelX,
+        travelY,
         dx: vx * exposure,
         dy: vy * exposure,
         depth,
@@ -73,25 +97,58 @@ export class OutsideRain {
       };
     });
   }
-  draw(c: CanvasRenderingContext2D, light: number) {
+  draw(c: CanvasRenderingContext2D, lights: RainLight[]) {
     if (this.intensity === 0) return;
     c.save();
-    // Soft airborne moisture, strongest near the distant skyline, not on the glass.
-    const haze = c.createLinearGradient(0, 0, 0, this.h);
-    const opacity = this.intensity * 0.065;
-    haze.addColorStop(0, "rgba(106,139,158,0)");
-    haze.addColorStop(0.42, `rgba(106,139,158,${opacity})`);
-    haze.addColorStop(1, "rgba(106,139,158,0)");
-    c.fillStyle = haze;
-    c.fillRect(0, 0, this.w, this.h);
+    // Moisture scatters light locally; the unlit sky stays dark and rain-free to the eye.
+    for (const light of lights) {
+      const r = light.radius;
+      const mist = c.createRadialGradient(
+        light.x,
+        light.y,
+        0,
+        light.x,
+        light.y,
+        r,
+      );
+      const color = light.warm ? "225,194,149" : "153,192,213";
+      mist.addColorStop(
+        0,
+        `rgba(${color},${0.045 * light.strength * this.intensity})`,
+      );
+      mist.addColorStop(1, `rgba(${color},0)`);
+      c.fillStyle = mist;
+      c.fillRect(light.x - r, light.y - r, r * 2, r * 2);
+    }
     c.lineCap = "round";
-    // Draw dim broad shoulders then a fine core; avoids expensive per-drop blur.
-    for (const p of this.streaks()) {
-      const illumination =
-        (0.65 + light * 0.35) *
-        (0.65 + 0.35 * Math.sin((p.x / this.w) * 8 + (p.y / this.h) * 3) ** 2);
-      c.strokeStyle = `rgba(174,200,212,${p.alpha * illumination})`;
-      c.lineWidth = 0.45 + p.depth * 0.85;
+    // Short, tapered exposures emerge from real light pools, with no uniform sky overlay.
+    const pools = lights
+      .slice(0, 22)
+      .filter(
+        (light) =>
+          light.x + light.radius > 0 &&
+          light.x - light.radius < this.w &&
+          light.y + light.radius > 0 &&
+          light.y - light.radius < this.h,
+      );
+    for (const [i, p] of this.streaks().entries()) {
+      // Spend most of the bounded particle budget where backlighting makes rain visible.
+      // Wrap at the dark edge of each pool, where opacity has already fallen to zero.
+      if (pools.length && i % 5 !== 0) {
+        const pool = pools[i % pools.length];
+        p.x = pool.x + wrap(p.travelX, pool.radius * 2) - pool.radius;
+        p.y = pool.y + wrap(p.travelY, pool.radius * 2.6) - pool.radius * 1.3;
+      }
+      const illumination = rainIllumination(p.x, p.y, lights);
+      const alpha = p.alpha * illumination.level * 2.5;
+      if (alpha < 0.008) continue;
+      const color = illumination.warm > 0.5 ? "239,213,170" : "181,211,225";
+      const trail = c.createLinearGradient(p.x - p.dx, p.y - p.dy, p.x, p.y);
+      trail.addColorStop(0, `rgba(${color},0)`);
+      trail.addColorStop(0.65, `rgba(${color},${alpha})`);
+      trail.addColorStop(1, `rgba(${color},0)`);
+      c.strokeStyle = trail;
+      c.lineWidth = 0.5 + p.depth * 0.65;
       c.beginPath();
       c.moveTo(p.x - p.dx, p.y - p.dy);
       c.lineTo(p.x, p.y);

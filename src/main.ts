@@ -10,7 +10,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
     <canvas id="city" aria-hidden="true"></canvas><canvas id="rain" aria-hidden="true"></canvas>
     <div class="glass" aria-hidden="true"></div><div class="frame" aria-hidden="true"></div>
     <header><span class="brand-mark" aria-hidden="true">◒</span><h1>Rain Window</h1><span class="edition">A MOMENT OF STILLNESS</span></header>
-    <div class="scene-label" title="기기 현지 시간 기준 · 22시부터 소등, 01–05시 사무실 소등, 05–08시 점등"><span class="live-dot" aria-hidden="true"></span>현지 시간과 함께 흐르는 밤</div>
+    <div class="scene-label" title="기기 현지 시간 기준 · 22시부터 소등, 01–05시 사무실 소등, 05–08시 점등"><span class="live-dot" aria-hidden="true"></span><span class="scene-caption">현지 시간과 함께 흐르는 밤</span><time id="clock" aria-label="기기 현지 시각"></time></div>
     <section class="controls" aria-label="감상 설정">
       <div class="weather-controls"><div class="rain-control"><label for="intensity">비의 세기 <output id="intensity-value">50%</output></label><div class="slider-row"><span aria-hidden="true">☂</span><input id="intensity" type="range" min="0" max="100" value="50" aria-label="비의 세기"></div></div>
       <div class="wind-control"><label for="wind">바람 <output id="wind-value">오른쪽 20%</output></label><div class="slider-row"><span aria-hidden="true">↔</span><input id="wind" type="range" min="-100" max="100" value="20" aria-label="바람 방향과 세기" aria-valuetext="오른쪽 20%"></div></div></div>
@@ -34,6 +34,20 @@ const windControl = document.querySelector<HTMLInputElement>("#wind")!;
 const volume = document.querySelector<HTMLInputElement>("#volume")!;
 const status = document.querySelector<HTMLParagraphElement>(".status")!;
 const motion = matchMedia("(prefers-reduced-motion: reduce)");
+const clock = document.querySelector<HTMLTimeElement>("#clock")!;
+let clockTimer: ReturnType<typeof setInterval> | undefined;
+function syncClock() {
+  clearInterval(clockTimer);
+  const update = () => {
+    const now = new Date();
+    clock.textContent = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    clock.dateTime = now.toISOString();
+    clock.title = `기기 현지 시각 · ${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
+  };
+  update();
+  if (!document.hidden) clockTimer = setInterval(update, 1000);
+}
+syncClock();
 const state: ExperienceState = {
   paused: motion.matches,
   hidden: document.hidden,
@@ -164,6 +178,7 @@ windControl.addEventListener("input", () => {
   windControl.setAttribute("aria-valuetext", label);
 });
 document.addEventListener("visibilitychange", () => {
+  syncClock();
   state.hidden = document.hidden;
   sync();
 });
@@ -190,16 +205,19 @@ document.addEventListener("fullscreenchange", () => {
   fullscreen.title = label;
 });
 window.addEventListener("pagehide", () => {
+  clearInterval(clockTimer);
   state.hidden = true;
   sync();
   cancelAnimationFrame(resizeFrame);
 });
 window.addEventListener("pageshow", () => {
+  syncClock();
   state.hidden = document.hidden;
   sync();
 });
 if (import.meta.hot)
   import.meta.hot.dispose(() => {
+    clearInterval(clockTimer);
     rain?.destroy();
     audio.destroy();
   });
