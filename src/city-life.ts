@@ -1,6 +1,7 @@
 import { drawCity, resolution, seeded } from "./scene";
 import { clamp } from "./state";
 import { OutsideRain, type RainLight } from "./outside-rain";
+import { drawVehicleLights } from "./vehicle-lights";
 
 /** Device-local wall clock; unrelated to the animation clock or location APIs. */
 export function buildingLightLevel(date: Date) {
@@ -113,6 +114,7 @@ export class CityLife {
   private cloudX = 0;
   private elapsed = 0;
   private wind = 0.2;
+  private intensity = 0.5;
   private enabled = false;
   private windows: {
     x: number;
@@ -274,6 +276,7 @@ export class CityLife {
     this.outsideRain.setWind(value);
   }
   setIntensity(value: number) {
+    this.intensity = clamp(value);
     this.outsideRain.setIntensity(value);
     this.render(new Date());
   }
@@ -353,7 +356,8 @@ export class CityLife {
     display.filter = `blur(${2.6 * this.scale}px)`;
     display.drawImage(this.lens, 0, 0);
     display.filter = "none";
-    // Light cores and moving cars retain their own focus instead of vanishing in city blur.
+    // Vehicles carry their own distance/rain point-spread footprint in both the
+    // visible city and the glass refraction source; never add a sharp overlay.
     for (const target of [c, display]) {
       target.setTransform(this.scale, 0, 0, this.scale, 0, 0);
       const movingLights = this.enabled ? this.drawLights(target) : [];
@@ -389,26 +393,30 @@ export class CityLife {
       const lane = dir * 0.0017;
       const x = this.ox + (p.x + lane) * this.photoW,
         y = this.oy + p.y * this.photoH;
-      const depth = clamp((p.y - 0.6) / 0.4),
-        r = 0.9 + depth * 1.3;
-      const color = dir > 0 ? "255,125,98" : "255,237,197";
-      c.globalAlpha = p.opacity;
-      const glow = c.createRadialGradient(x, y, 0, x, y, r * 5);
-      glow.addColorStop(0, `rgba(${color},0.55)`);
-      glow.addColorStop(0.3, `rgba(${color},0.12)`);
-      glow.addColorStop(1, `rgba(${color},0)`);
-      c.fillStyle = glow;
-      c.fillRect(x - r * 5, y - r * 5, r * 10, r * 10);
-      c.fillStyle = dir > 0 ? "#fba18b" : "#fff5dc";
-      c.fillRect(x - r, y, r * 0.7, r * 0.85);
-      c.fillRect(x + r * 0.4, y, r * 0.7, r * 0.85);
-      c.globalAlpha = 1;
+      const a = trafficPointAtDistance(Math.max(0, p.meters - 5));
+      const b = trafficPointAtDistance(
+        Math.min(TRAFFIC_ROUTE_METERS, p.meters + 5),
+      );
+      const angle =
+        Math.atan2((b.y - a.y) * this.photoH, (b.x - a.x) * this.photoW) +
+        Math.PI / 2;
+      const optics = drawVehicleLights(
+        c,
+        x,
+        y,
+        p.meters,
+        this.intensity,
+        this.photoW / 1536,
+        dir > 0,
+        p.opacity,
+        angle,
+      );
       lights.push({
         x,
         y,
-        radius: r * 13,
-        strength: 0.65 * p.opacity,
-        warm: true,
+        radius: 5 + optics.separation * 3,
+        strength: 0.3 * optics.transmission * p.opacity,
+        warm: dir > 0,
       });
     }
     return lights;

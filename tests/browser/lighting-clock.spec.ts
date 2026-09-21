@@ -13,10 +13,16 @@ test("차량이 실제 도로에서 이동하고 정지·재개되며 새벽에�
     CanvasRenderingContext2D.prototype.fillRect = function (x, y, w, h) {
       if (
         this.canvas.id === "city" &&
-        (this.fillStyle === "#fff5dc" || this.fillStyle === "#fba18b")
+        this.fillStyle instanceof CanvasGradient &&
+        x === -3 &&
+        y === -3 &&
+        w === 6 &&
+        h === 6
       ) {
-        if (calls++ % 44 === 0) {
-          frames.push({ x, y });
+        // Two lamp footprints and six asphalt glints per car, 22 cars.
+        if (calls++ % 176 === 0) {
+          const transform = this.getTransform();
+          frames.push({ x: transform.e, y: transform.f });
           if (frames.length > 100) frames.shift();
         }
       }
