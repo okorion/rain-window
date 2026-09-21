@@ -156,6 +156,14 @@ h1 {
   width: 162px;
   flex-shrink: 0;
 }
+.weather-controls {
+  display: flex;
+  gap: 22px;
+}
+.wind-control {
+  width: 150px;
+  flex-shrink: 0;
+}
 label {
   display: flex;
   justify-content: space-between;
@@ -415,5 +423,39 @@ footer {
   }
   .status {
     bottom: 105px;
+  }
+}
+@media (max-width: 760px) {
+  .controls {
+    display: grid;
+    grid-template-columns: 44px 1fr 44px;
+    width: min(350px, calc(100% - 36px));
+    gap: 4px 12px;
+  }
+  .weather-controls {
+    grid-column: 1/-1;
+    gap: 18px;
+  }
+  .weather-controls > div {
+    width: calc(50% - 9px);
+  }
+  .controls .divider {
+    display: none;
+  }
+  .audio-controls {
+    justify-content: center;
+  }
+  .audio-controls input {
+    width: 80px;
+  }
+  .slider-row,
+  input[type="range"] {
+    height: 44px;
+  }
+  .status {
+    bottom: 212px;
+  }
+  .scene-label {
+    display: none;
   }
 }

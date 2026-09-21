@@ -14,6 +14,7 @@ test("굴절 애니메이션, 무강수 정지와 재개 영상", async ({
   });
   const page = await context.newPage();
   try {
+    await page.clock.setFixedTime(new Date(2026, 8, 21, 12, 0, 0));
     await page.goto("/");
     await expect(page.locator("#rain")).toHaveAttribute(
       "data-renderer",
@@ -36,9 +37,17 @@ test("굴절 애니메이션, 무강수 정지와 재개 영상", async ({
     await page
       .getByRole("slider", { name: "비의 세기", exact: true })
       .fill("0");
-    const dry = await frame();
+    const cityBefore = await page
+      .locator("#city")
+      .evaluate((c) => (c as HTMLCanvasElement).toDataURL());
     await page.waitForTimeout(600);
-    expect(await frame()).toBe(dry);
+    // Zero rain stops drops, while the city continues and its reflections can change.
+    await expect(page.locator("#intensity-value")).toHaveText("0%");
+    expect(
+      await page
+        .locator("#city")
+        .evaluate((c) => (c as HTMLCanvasElement).toDataURL()),
+    ).not.toBe(cityBefore);
     await page
       .getByRole("slider", { name: "비의 세기", exact: true })
       .fill("100");

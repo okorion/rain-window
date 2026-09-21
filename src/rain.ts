@@ -1,6 +1,7 @@
 import { seeded, resolution } from "./scene";
 import { clamp, dropLimit, FrameClock } from "./state";
 import { WaterRenderer } from "./water-renderer";
+import { windSpeed } from "./city-life";
 import { Impacts, impactShape, type Impact } from "./impacts";
 
 interface Bead {
@@ -39,6 +40,8 @@ export class Rain {
   private width = 0;
   private height = 0;
   private intensity = 0.5;
+  private wind = 0.2;
+  private tickScene: (dt: number) => boolean;
   private failed = false;
   private canvas: HTMLCanvasElement;
   private onFailure: () => void;
@@ -46,7 +49,9 @@ export class Rain {
     canvas: HTMLCanvasElement,
     city: HTMLCanvasElement,
     onFailure: () => void,
+    tickScene: (dt: number) => boolean = () => false,
   ) {
+    this.tickScene = tickScene;
     this.canvas = canvas;
     this.onFailure = onFailure;
     this.renderer = new WaterRenderer(canvas, city);
@@ -93,6 +98,13 @@ export class Rain {
     this.drops.length = count;
     this.render();
   }
+  setWind(value: number) {
+    this.wind = clamp(value, -1, 1);
+  }
+  refreshScene() {
+    this.renderer.refreshScene();
+    this.render();
+  }
   setRunning(value: boolean) {
     if (value === this.running || this.failed) return;
     this.running = value;
@@ -105,6 +117,7 @@ export class Rain {
     try {
       const dt = this.clock.tick(time, this.width <= 640 ? 30 : 60);
       if (dt !== null) {
+        if (this.tickScene(dt)) this.renderer.refreshScene();
         this.update(dt);
         this.render();
       }
@@ -169,7 +182,8 @@ export class Rain {
       }
       const oldX = d.x,
         oldY = d.y;
-      d.drift += (d.targetDrift - d.drift) * Math.min(1, dt * 2);
+      d.drift +=
+        (d.targetDrift + windSpeed(this.wind) - d.drift) * Math.min(1, dt * 2);
       d.x += d.drift * dt * Math.min(1, d.speed / 30);
       d.y += d.speed * dt;
       const distance = d.y - oldY;
@@ -205,7 +219,8 @@ export class Rain {
             other.r = 0;
           }
         }
-      if (d.y > this.height + 30) this.drops[i] = this.createDrop(false, true);
+      if (d.y > this.height + 30 || d.x < -30 || d.x > this.width + 30)
+        this.drops[i] = this.createDrop(false, true);
     }
     const limit = this.width <= 640 ? 2200 : 5000;
     if (this.residue.length > limit)
@@ -249,7 +264,9 @@ export class Rain {
         Math.min(1, hit.age / 0.025) * Math.max(0, 1 - hit.age / 0.48);
       for (const fleck of hit.satellites)
         this.renderer.bead(
-          hit.x + Math.cos(fleck.angle) * fleck.distance * travel,
+          hit.x +
+            Math.cos(fleck.angle) * fleck.distance * travel +
+            windSpeed(this.wind) * hit.age * 0.2,
           hit.y +
             Math.sin(fleck.angle) * fleck.distance * travel +
             hit.age * hit.age * 9,

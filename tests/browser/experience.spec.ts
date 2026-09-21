@@ -290,6 +290,7 @@ test("전체 화면 거부와 렌더 context 상실 처리", async ({ page }) =>
 });
 
 test("실제 화면 캡처", async ({ page }) => {
+  await page.clock.setFixedTime(new Date(2026, 8, 21, 12, 0, 0));
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute(
     "data-background",

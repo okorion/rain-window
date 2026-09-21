@@ -134,6 +134,10 @@ export class WaterRenderer {
     const gl = this.gl;
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.uniform2f(gl.getUniformLocation(this.program, "size"), w, h);
+    this.refreshScene();
+  }
+  refreshScene() {
+    const gl = this.gl;
     gl.texImage2D(
       gl.TEXTURE_2D,
       0,

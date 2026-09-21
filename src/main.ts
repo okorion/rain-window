@@ -1,5 +1,5 @@
 import "./style.css";
-import { drawCity } from "./scene";
+import { CityLife } from "./city-life";
 import { Rain } from "./rain";
 import { RainAudio } from "./audio";
 import { active, type ExperienceState } from "./state";
@@ -10,9 +10,10 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
     <canvas id="city" aria-hidden="true"></canvas><canvas id="rain" aria-hidden="true"></canvas>
     <div class="glass" aria-hidden="true"></div><div class="frame" aria-hidden="true"></div>
     <header><span class="brand-mark" aria-hidden="true">◒</span><h1>Rain Window</h1><span class="edition">A MOMENT OF STILLNESS</span></header>
-    <div class="scene-label" aria-hidden="true"><span class="live-dot"></span>늦은 밤, 창가에서</div>
+    <div class="scene-label" title="기기 현지 시간 기준 · 22시부터 소등, 01–05시 사무실 소등, 05–08시 점등"><span class="live-dot" aria-hidden="true"></span>현지 시간과 함께 흐르는 밤</div>
     <section class="controls" aria-label="감상 설정">
-      <div class="rain-control"><label for="intensity">비의 세기 <output id="intensity-value">50%</output></label><div class="slider-row"><span aria-hidden="true">☂</span><input id="intensity" type="range" min="0" max="100" value="50" aria-label="비의 세기"></div></div>
+      <div class="weather-controls"><div class="rain-control"><label for="intensity">비의 세기 <output id="intensity-value">50%</output></label><div class="slider-row"><span aria-hidden="true">☂</span><input id="intensity" type="range" min="0" max="100" value="50" aria-label="비의 세기"></div></div>
+      <div class="wind-control"><label for="wind">바람 <output id="wind-value">오른쪽 20%</output></label><div class="slider-row"><span aria-hidden="true">↔</span><input id="wind" type="range" min="-100" max="100" value="20" aria-label="바람 방향과 세기" aria-valuetext="오른쪽 20%"></div></div></div>
       <span class="divider" aria-hidden="true"></span>
       <button id="pause" class="icon-button" aria-label="일시정지" title="일시정지"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6v12M15 6v12"/></svg></button>
       <div class="audio-controls"><button id="sound" class="icon-button" aria-label="빗소리 켜기" aria-pressed="false" title="빗소리 켜기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4zM16 9l5 6M21 9l-5 6"/></svg></button><input id="volume" type="range" min="0" max="100" value="35" aria-label="빗소리 음량"></div>
@@ -29,6 +30,7 @@ const pause = document.querySelector<HTMLButtonElement>("#pause")!;
 const sound = document.querySelector<HTMLButtonElement>("#sound")!;
 const fullscreen = document.querySelector<HTMLButtonElement>("#fullscreen")!;
 const intensity = document.querySelector<HTMLInputElement>("#intensity")!;
+const windControl = document.querySelector<HTMLInputElement>("#wind")!;
 const volume = document.querySelector<HTMLInputElement>("#volume")!;
 const status = document.querySelector<HTMLParagraphElement>(".status")!;
 const motion = matchMedia("(prefers-reduced-motion: reduce)");
@@ -40,6 +42,8 @@ const state: ExperienceState = {
   intensity: 0.5,
 };
 let rain: Rain | null = null;
+let cityLife: CityLife | null = null;
+let wind = 0.2;
 let graphicsFailed = false;
 let photo: HTMLImageElement | undefined;
 let resizeFrame = 0;
@@ -52,6 +56,8 @@ function graphicsFailure() {
   city.hidden = true;
   rainCanvas.hidden = true;
   intensity.disabled = true;
+  windControl.disabled = true;
+  cityLife = null;
   status.textContent = "그래픽을 표시할 수 없어 정적인 야경으로 전환했습니다.";
 }
 const audio = new RainAudio(() => {
@@ -83,6 +89,14 @@ function updateUI() {
     : "paused";
 }
 function sync() {
+  if (active(state) && cityLife) {
+    try {
+      cityLife.refreshTime();
+      rain?.refreshScene();
+    } catch {
+      graphicsFailure();
+    }
+  }
   rain?.setRunning(active(state));
   audio.sync(state);
   updateUI();
@@ -90,11 +104,18 @@ function sync() {
 function resize() {
   if (graphicsFailed) return;
   try {
-    drawCity(city, window.innerWidth, window.innerHeight, photo);
-    drawCity(lensScene, window.innerWidth, window.innerHeight, photo, 0.6);
-    rain ??= new Rain(rainCanvas, lensScene, graphicsFailure);
+    cityLife ??= new CityLife(city, lensScene);
+    cityLife.resize(window.innerWidth, window.innerHeight, photo);
+    cityLife.setWind(wind);
+    rain ??= new Rain(
+      rainCanvas,
+      lensScene,
+      graphicsFailure,
+      (dt) => cityLife?.step(dt) ?? false,
+    );
     rain.resize(window.innerWidth, window.innerHeight);
     rain.setIntensity(state.intensity);
+    rain.setWind(wind);
     rain.setRunning(active(state));
   } catch {
     graphicsFailure();
@@ -127,6 +148,17 @@ intensity.addEventListener("input", () => {
 volume.addEventListener("input", () => {
   state.volume = Number(volume.value) / 100;
   audio.sync(state);
+});
+windControl.addEventListener("input", () => {
+  wind = Number(windControl.value) / 100;
+  cityLife?.setWind(wind);
+  rain?.setWind(wind);
+  const label =
+    wind === 0
+      ? "무풍"
+      : `${wind < 0 ? "왼쪽" : "오른쪽"} ${Math.round(Math.abs(wind) * 100)}%`;
+  document.querySelector("#wind-value")!.textContent = label;
+  windControl.setAttribute("aria-valuetext", label);
 });
 document.addEventListener("visibilitychange", () => {
   state.hidden = document.hidden;
