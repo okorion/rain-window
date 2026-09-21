@@ -13,3 +13,5 @@
 | Prettier           | MIT        | https://github.com/prettier/prettier                   |
 
 Vite 빌드 과정에서 포함되는 modulepreload 헬퍼는 Vite의 MIT 라이선스 적용 대상입니다. 해당 저작권 및 라이선스 전문은 배포 파일 `third-party-licenses.txt`에 함께 보존합니다.
+
+음악 제작 전용 도구(웹 런타임·배포물에는 미포함): NumPy·SciPy(BSD-3-Clause), imageio-ffmpeg(BSD-2-Clause), FFmpeg/libmp3lame. 도구 실행 파일은 배포하지 않으며 배포 음원에는 외부 샘플을 사용하지 않습니다. 재생성 환경은 생성 스크립트 설명을 참고하세요.

@@ -2,6 +2,7 @@ import "./style.css";
 import { CityLife } from "./city-life";
 import { Rain } from "./rain";
 import { RainAudio } from "./audio";
+import { MusicAudio } from "./music";
 import { active, type ExperienceState } from "./state";
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
@@ -20,7 +21,12 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
       <span class="divider fullscreen-divider" aria-hidden="true"></span>
       <button id="fullscreen" class="icon-button" aria-label="전체 화면" title="전체 화면"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button>
     </section>
-    <p class="status" role="status" aria-live="polite"></p><footer>잠시, 비를 바라보세요.</footer>
+    <p class="status" role="status" aria-live="polite"></p>
+    <section class="music-controls" aria-label="배경음악">
+      <button id="music" class="icon-button" aria-label="배경음악 켜기" aria-pressed="false" title="배경음악 켜기">♫</button>
+      <span class="music-title">Rain <span>· oh</span></span>
+      <input id="music-volume" type="range" min="0" max="100" value="40" aria-label="배경음악 음량">
+    </section>
   </main>`;
 
 const city = document.querySelector<HTMLCanvasElement>("#city")!;
@@ -32,6 +38,9 @@ const fullscreen = document.querySelector<HTMLButtonElement>("#fullscreen")!;
 const intensity = document.querySelector<HTMLInputElement>("#intensity")!;
 const windControl = document.querySelector<HTMLInputElement>("#wind")!;
 const volume = document.querySelector<HTMLInputElement>("#volume")!;
+const musicButton = document.querySelector<HTMLButtonElement>("#music")!;
+const musicVolume = document.querySelector<HTMLInputElement>("#music-volume")!;
+let musicEnabled = false;
 const status = document.querySelector<HTMLParagraphElement>(".status")!;
 const motion = matchMedia("(prefers-reduced-motion: reduce)");
 const clock = document.querySelector<HTMLTimeElement>("#clock")!;
@@ -81,6 +90,37 @@ const audio = new RainAudio(() => {
   status.textContent =
     "빗소리를 재생하지 못했습니다. 소리 버튼을 눌러 다시 시도해 주세요.";
 });
+const music = new MusicAudio(
+  () => {
+    musicEnabled = false;
+    syncMusic();
+    status.textContent =
+      "음악을 재생하지 못했습니다. 음악 버튼을 눌러 다시 시도해 주세요.";
+  },
+  (loading) => {
+    musicButton.setAttribute("aria-busy", String(loading));
+    if (loading) status.textContent = "Rain · oh를 준비하고 있어요.";
+    else if (status.textContent === "Rain · oh를 준비하고 있어요.")
+      status.textContent = "";
+  },
+);
+function syncMusic() {
+  musicButton.setAttribute("aria-pressed", String(musicEnabled));
+  const label = musicEnabled ? "배경음악 끄기" : "배경음악 켜기";
+  musicButton.setAttribute("aria-label", label);
+  musicButton.title = label;
+  music.sync({
+    enabled: musicEnabled,
+    active: active(state),
+    volume: Number(musicVolume.value) / 100,
+  });
+}
+musicButton.addEventListener("click", () => {
+  musicEnabled = !musicEnabled;
+  status.textContent = "";
+  syncMusic();
+});
+musicVolume.addEventListener("input", syncMusic);
 city.addEventListener("contextlost", graphicsFailure);
 rainCanvas.addEventListener("contextlost", graphicsFailure);
 rainCanvas.addEventListener("webglcontextlost", graphicsFailure);
@@ -113,6 +153,7 @@ function sync() {
   }
   rain?.setRunning(active(state));
   audio.sync(state);
+  syncMusic();
   updateUI();
 }
 function resize() {
@@ -220,6 +261,7 @@ if (import.meta.hot)
     clearInterval(clockTimer);
     rain?.destroy();
     audio.destroy();
+    music.destroy();
   });
 resize();
 sync();

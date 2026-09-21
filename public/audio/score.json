@@ -1,0 +1,31 @@
+{
+  "title": "Rain",
+  "artist": "oh",
+  "bpm": 74,
+  "bars": 32,
+  "seconds": 103.78378125,
+  "sampleRate": 32000,
+  "peak": 0.5309470891952515,
+  "rms": 0.10500025004148483,
+  "boundaryJump": 0.0,
+  "chords": [
+    "Dbmaj9",
+    "Bbm9",
+    "Ebm9",
+    "Ab13",
+    "Fm9",
+    "Bb7(b13)",
+    "Ebm9",
+    "Ab13",
+    "Gbmaj9",
+    "Fm7",
+    "Ebm9",
+    "Ab13",
+    "Db6/9",
+    "Bb7(b13)",
+    "Ebm9",
+    "Ab13"
+  ],
+  "seed": 20260922,
+  "externalSamples": false
+}
