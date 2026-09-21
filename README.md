@@ -2,11 +2,18 @@
 
 **늦은 밤, 비 오는 도시를 바라보는 작은 창가.**
 
-고층 창가에서 내려다보는 실제 도쿄 야경과 따뜻한 불빛, 유리에 부딪혀 맺히고 흘러내리는 빗물을 감상하는 웹 프로젝트입니다. 접속하면 비가 움직이고, 원할 때 빗소리를 켤 수 있습니다. 기본은 무음입니다.
+고층 창가에서 내려다보는 실제 도쿄 야경과 유리에 부딪혀 흘러내리는 빗물을 감상하는 웹 프로젝트입니다. 구름과 차량이 움직이고, 기기 현지 시간에 따라 교통량과 빌딩 조명이 달라집니다. 비와 바람을 조절하며 합성 빗소리와 오리지널 로파이 **Rain — oh**를 함께 들을 수 있습니다. 접속 즉시 감상이 시작되며, 소리는 직접 켜기 전까지 무음입니다.
 
 **[Rain Window 감상하기 →](https://rain-window.okorion.chatgpt.site)**
 
-[![Rain Window 데스크톱 실제 화면 — 흐릿한 도시 야경과 유리 위 물방울](docs/screenshots/desktop.png)](https://rain-window.okorion.chatgpt.site)
+| 링크 | 주소 |
+| --- | --- |
+| 공개 배포 | [rain-window.okorion.chatgpt.site](https://rain-window.okorion.chatgpt.site/) |
+| GitHub 저장소 | [okorion/rain-window](https://github.com/okorion/rain-window) |
+
+[![Rain Window 실제 화면 — 비 오는 도시, 움직이는 차량과 Rain · oh 음악 컨트롤](docs/screenshots/traffic-density-after.png)](https://rain-window.okorion.chatgpt.site)
+
+[차량 이동·시간대별 교통량 실제 영상](docs/screenshots/traffic-density-motion.webm) · [음악 Rain — oh 듣기](public/audio/oh-rain.mp3)
 
 ## 감상과 조작
 
@@ -86,10 +93,13 @@ npm run preview
 | 방울 움직임·잔여 물막 | [src/rain.ts](src/rain.ts) |
 | 곡면 굴절·환경 반사 | [src/water-renderer.ts](src/water-renderer.ts) |
 | 유리 충격·퍼짐·미세 튀김 | [src/impacts.ts](src/impacts.ts) |
-| 구름·차량·시간별 조명·바람 | [src/city-life.ts](src/city-life.ts) |
+| 구름·차량·시간별 교통량·조명·바람 | [src/city-life.ts](src/city-life.ts) |
+| 차량 불빛·강우 감쇠·노면 반사 | [src/vehicle-lights.ts](src/vehicle-lights.ts) |
 | 창밖 비·거리별 빗줄기·빗안개 | [src/outside-rain.ts](src/outside-rain.ts) |
 | 합성 빗소리·재생 관리      | [src/audio.ts](src/audio.ts) |
 | 실내 빗소리·타격음 생성 | [src/rain-sound.ts](src/rain-sound.ts) |
+| 배경음악 로딩·반복 재생·독립 음량 | [src/music.ts](src/music.ts) |
+| Rain — oh 악보·음색 합성·믹스 | [scripts/compose-rain.py](scripts/compose-rain.py) |
 | 감상 상태·프레임 시간      | [src/state.ts](src/state.ts) |
 | 컨트롤·브라우저 이벤트     | [src/main.ts](src/main.ts)   |
 
@@ -157,7 +167,9 @@ npm run test:e2e
 
 ## 배포와 저장소
 
-현재 공개 사이트는 [Sites](https://rain-window.okorion.chatgpt.site)에 배포되어 있습니다. `npm run build`가 생성하는 `dist/`를 루트 경로로 서비스하는 정적 호스팅에도 배포할 수 있습니다. 별도 서버·로그인·DB·AI API·날씨 API·위치 권한은 사용하지 않습니다.
+**공개 배포 주소: [https://rain-window.okorion.chatgpt.site/](https://rain-window.okorion.chatgpt.site/)**
+
+Sites에 공개 배포되어 있으며 로그인 없이 감상할 수 있습니다. `npm run build`가 생성하는 `dist/`를 루트 경로로 서비스하는 정적 호스팅에도 배포할 수 있습니다. 별도 서버·로그인·DB·AI API·날씨 API·위치 권한은 사용하지 않습니다.
 
 이 GitHub 저장소는 공개 소스 저장소입니다. Sites 배포용 저장소와는 **수동으로 동기화**하며, GitHub push가 자동 동기화나 사이트 재배포를 실행하지 않습니다. `.openai/hosting.json`은 현재 Sites 프로젝트에 연결된 설정이므로, 포크를 별도 Sites 프로젝트로 배포할 때는 자신의 프로젝트 설정을 사용하세요.
 
