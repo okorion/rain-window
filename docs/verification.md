@@ -1,5 +1,21 @@
 # 검증 기록
 
+## 곡면 굴절과 자연스러운 흐름 · 2026-09-21
+
+- 고정 테두리·밝은 선으로 된 꼬리를 제거하고 WebGL 곡면 굴절·도시 조명 기반 반사로 교체. 곡면을 픽셀별로 계산해 작은 방울의 계단 현상을 줄임.
+- 배경 블러 5px, 굴절용 사진 블러 0.6px를 따로 캐시. 큰 방울은 표면에 머물다가 가속하며 속도에 따라 길어지고, 주변의 작은 방울을 제한적으로 흡수. 정지 방울 재생성은 정지 방울로 유지해 시간이 흐를수록 이동 방울 비율이 증가하지 않도록 처리.
+- 물길은 흰 선 대신 0.35~1.15초간 잔여 물막 조각으로 표시. 주 방울 상한 240/560개, 잔여 조각 상한 2,200/5,000개, GPU 배치 상한 5,600개. 픽셀·프레임 예산 유지.
+- lint·typecheck·build, 단위 검사 12개와 브라우저 검사 14개 통과. WebGL 미지원, 실제 `WEBGL_lose_context` 확장으로 GPU context 상실, 시각 프레임 변경·비 0에서 불변·일시정지·재개 추가 검사.
+- [실제 브라우저 실행 영상](screenshots/rain-motion.webm): 1440×900, 기본 비 → 0 → 100 → 일시정지 → 재개. 영상은 결과물 캡처이며 배경 영상 자산으로 사용하지 않음.
+- 아래 화면은 같은 뷰포트·비 50%·무음 조건. 데스크톱은 3.5초, 모바일은 크기 변경 후 0.5초에 캡처하며 프레임 스케줄러 오차가 있음.
+
+| 대상 | 변경 전 | 변경 후 | 판단 포인트 |
+| --- | --- | --- | --- |
+| 데스크톱 1440×900 | ![이전](screenshots/desktop-before-refraction.png) | ![이후](screenshots/desktop.png) | 고정 흰 윤곽·긴 선 제거, 주변 도시의 곡면 굴절 |
+| 모바일 390×844 | ![이전](screenshots/mobile-before-refraction.png) | ![이후](screenshots/mobile.png) | 유리와 배경의 초점 차이, 터치 조작과 가독성 |
+
+한계: 실사 빗물 동영상 자체가 아니며 정적인 도시 사진 위 실시간 근사 효과다. 모바일은 에뮬레이션이며 실제 휴대전화·Safari·Firefox·장시간 열/배터리 성능은 미검증. GPU 사용이 차단되거나 context를 잃으면 기존 정적 CSS 대체 화면으로 전환한다.
+
 ## 실제 도시 배경·물방울 가시성 개선 · 2026-09-21
 
 - 기본 밀도: 데스크톱 205→406개, 모바일 90→174개. 상한은 각각 560개·240개이며 픽셀 예산과 프레임 상한은 유지.
@@ -10,8 +26,8 @@
 
 | 대상 | 변경 전 | 변경 후 | 판단 포인트 |
 | --- | --- | --- | --- |
-| 데스크톱 1440×900 | ![이전](screenshots/desktop-before-photo.png) | ![이후](screenshots/desktop.png) | 실제 사진, 물방울 크기·윤곽·밀도 |
-| 모바일 390×844 | ![이전](screenshots/mobile-before-photo.png) | ![이후](screenshots/mobile.png) | 세로 자르기, 물길과 컨트롤 가독성 |
+| 데스크톱 1440×900 | ![이전](screenshots/desktop-before-photo.png) | ![이후](screenshots/desktop-before-refraction.png) | 실제 사진, 물방울 크기·윤곽·밀도 |
+| 모바일 390×844 | ![이전](screenshots/mobile-before-photo.png) | ![이후](screenshots/mobile-before-refraction.png) | 세로 자르기, 물길과 컨트롤 가독성 |
 
 사진 출처와 이용 조건: [Charmaine / Pexels](../public/images/ATTRIBUTION.md). 실기기·Safari·Firefox와 사진 속 움직임은 검증·구현 범위 밖이며, 배경은 정적인 사진이다.
 

@@ -7,11 +7,15 @@ test("실제 도시 사진과 기본 물방울의 가시 면적", async ({ page 
     "data-background",
     "photo",
   );
+  await expect(page.locator("#rain")).toHaveAttribute("data-renderer", "webgl");
   const coverage = await page.locator("#rain").evaluate((element) => {
     const canvas = element as HTMLCanvasElement;
-    const pixels = canvas
-      .getContext("2d")!
-      .getImageData(0, 0, canvas.width, canvas.height).data;
+    const copy = document.createElement("canvas");
+    copy.width = canvas.width;
+    copy.height = canvas.height;
+    const ctx = copy.getContext("2d")!;
+    ctx.drawImage(canvas, 0, 0);
+    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
     let visible = 0;
     for (let i = 3; i < pixels.length; i += 4) if (pixels[i] > 100) visible++;
     return visible / (canvas.width * canvas.height);

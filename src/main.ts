@@ -23,6 +23,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   </main>`;
 
 const city = document.querySelector<HTMLCanvasElement>("#city")!;
+const lensScene = document.createElement("canvas");
 const rainCanvas = document.querySelector<HTMLCanvasElement>("#rain")!;
 const pause = document.querySelector<HTMLButtonElement>("#pause")!;
 const sound = document.querySelector<HTMLButtonElement>("#sound")!;
@@ -62,6 +63,7 @@ const audio = new RainAudio(() => {
 });
 city.addEventListener("contextlost", graphicsFailure);
 rainCanvas.addEventListener("contextlost", graphicsFailure);
+rainCanvas.addEventListener("webglcontextlost", graphicsFailure);
 function updateUI() {
   pause.setAttribute("aria-label", state.paused ? "재생" : "일시정지");
   pause.title = state.paused ? "재생" : "일시정지";
@@ -89,7 +91,8 @@ function resize() {
   if (graphicsFailed) return;
   try {
     drawCity(city, window.innerWidth, window.innerHeight, photo);
-    rain ??= new Rain(rainCanvas, city, graphicsFailure);
+    drawCity(lensScene, window.innerWidth, window.innerHeight, photo, 0.6);
+    rain ??= new Rain(rainCanvas, lensScene, graphicsFailure);
     rain.resize(window.innerWidth, window.innerHeight);
     rain.setIntensity(state.intensity);
     rain.setRunning(active(state));

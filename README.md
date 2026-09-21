@@ -46,16 +46,21 @@ npm run preview
 
 ## 구현 방식
 
-**Vite · TypeScript · Canvas 2D · Web Audio API**
+**Vite · TypeScript · WebGL · Canvas 2D · Web Audio API**
 
-배경과 유리 표면을 별도 Canvas로 나눕니다. 도쿄 거리 사진을 화면 비율에 맞춰 자르고 부드러운 블러와 색조를 적용해 캐시하고, 정지 물방울과 천천히 흐르는 방울·물길을 그 위에 표시합니다. 물방울 안에는 배경 일부를 확대해 비친 듯한 효과를 줍니다.
+배경은 흐린 도시 사진으로, 물방울 안의 반사는 선명한 사진으로 각각 캐시합니다. WebGL 셰이더가 방울의 곡면을 계산해 주변 도시를 뒤집고 휘어 비추며, 빛과 색은 같은 도시 사진에서 가져옵니다. 방울마다 일정한 흰 테두리를 그리지 않습니다.
+
+큰 방울은 유리에 잠시 붙어 있다가 가속하고, 속도에 따라 길어집니다. 지나간 자리는 짧게 남는 얇은 물막과 작은 방울로 표현하며, 경로의 작은 방울을 흡수하는 제한적인 근사 동작을 적용합니다. 작은 정지 방울은 서서히 생기고 사라집니다. 모든 방울과 잔여 물막은 한 번의 WebGL 배치로 그립니다.
+
+[실제 실행 영상 — 기본 강도, 비 멈춤, 강한 비와 일시정지](docs/screenshots/rain-motion.webm)
 
 빗소리는 스테레오 노이즈와 저역 필터로 합성합니다. AudioContext와 반복 소스를 재사용해 소리 켜기·끄기를 반복해도 중첩되지 않도록 관리합니다.
 
 | 구성                       | 구현                         |
 | -------------------------- | ---------------------------- |
 | 도시 야경·반사·불빛        | [src/scene.ts](src/scene.ts) |
-| 물방울·근사 렌즈 효과·물길 | [src/rain.ts](src/rain.ts)   |
+| 방울 움직임·잔여 물막 | [src/rain.ts](src/rain.ts) |
+| 곡면 굴절·환경 반사 | [src/water-renderer.ts](src/water-renderer.ts) |
 | 합성 빗소리·재생 관리      | [src/audio.ts](src/audio.ts) |
 | 감상 상태·프레임 시간      | [src/state.ts](src/state.ts) |
 | 컨트롤·브라우저 이벤트     | [src/main.ts](src/main.ts)   |
@@ -64,14 +69,15 @@ npm run preview
 
 - 비활성 탭에서는 렌더와 소리를 중단하고, 복귀할 때 지난 시간을 건너뛰어 계산합니다.
 - `prefers-reduced-motion` 설정에서는 정지 화면으로 시작하며, 직접 재생할 수 있습니다.
-- Canvas 실패 시 정적인 CSS 야경으로 전환합니다. 소리 재생 실패는 시각 감상에 영향을 주지 않습니다.
+- Canvas·WebGL 초기화 실패 또는 context 상실 시 정적인 CSS 야경으로 전환합니다. 소리 재생 실패는 시각 감상에 영향을 주지 않습니다.
 - 컨트롤에 접근성 이름과 키보드 포커스 표시를 제공하며, 모바일 터치 영역을 확보합니다.
 
 | 렌더 예산          | 가로 640px 이하 | 그 외 |
 | ------------------ | --------------- | ----- |
 | 최대 DPR           | 1.5             | 2     |
 | Canvas당 최대 픽셀 | 100만           | 210만 |
-| 최대 물방울        | 240개           | 560개 |
+| 최대 주 물방울     | 240개           | 560개 |
+| 최대 잔여 물막 조각 | 2,200개         | 5,000개 |
 | 프레임 상한        | 30fps           | 60fps |
 
 모든 기기에서 상한 fps를 보장하지는 않습니다.
@@ -100,13 +106,13 @@ npm run dev -- --host 127.0.0.1 --port 5174 --strictPort
 npm run test:e2e
 ```
 
-다른 서버를 검사하려면 `QA_BASE_URL` 환경 변수를 지정합니다. 첫 공개 버전에서 단위 테스트 12개와 브라우저 테스트 9개를 통과했습니다. 검사 범위와 실행 환경은 [검증 기록](docs/verification.md)에 정리했습니다.
+다른 서버를 검사하려면 `QA_BASE_URL` 환경 변수를 지정합니다. 현재 단위 테스트 12개와 브라우저 테스트 14개를 통과했습니다. 검사 범위와 실행 환경은 [검증 기록](docs/verification.md)에 정리했습니다.
 
 ## 자산과 알려진 한계
 
 배경은 Charmaine이 촬영한 실제 도쿄 야경 사진이며 Pexels License로 사용합니다. 사진은 프로젝트에 포함해 같은 출처에서 제공하며, 방문 시 외부 사진 서버에 요청하지 않습니다. [사진 원문](https://www.pexels.com/photo/people-walking-on-street-5182103/) · [라이선스](https://www.pexels.com/license/) · [자산 상세](public/images/ATTRIBUTION.md). 물방울·대체 화면·SVG 아이콘은 코드로 생성하고 빗소리는 브라우저에서 합성합니다. 외부 음원·웹 폰트는 사용하지 않습니다. 글꼴은 기기에 설치된 Arial, Malgun Gothic, Georgia와 시스템 대체 글꼴을 사용합니다. 개발 도구와 배포 헬퍼의 라이선스는 [서드파티 고지](THIRD_PARTY_NOTICES.md)에 기록했습니다.
 
-- 물방울은 스타일화된 근사 표현이며 실제 굴절·충돌·합쳐짐·유체 시뮬레이션은 없습니다.
+- 실제 빗물을 촬영한 영상이 아니라, 실제 도시 사진 위에 실시간으로 생성하는 효과입니다. 곡면 굴절·표면 부착·경로상의 작은 방울 흡수는 근사 표현이며 정확한 광학·충돌·유체 시뮬레이션은 아닙니다. 배경 사진 속 사람과 도시는 움직이지 않습니다.
 - 빗소리는 현장 녹음이 아닌 8초 합성 노이즈 루프입니다.
 - 모바일은 뷰포트 에뮬레이션으로 검사했습니다. 실제 휴대전화·Safari·Firefox와 장시간 실기기 성능은 미검증입니다.
 - 전체 화면과 소리 재생은 브라우저·운영체제 정책에 영향을 받습니다.
@@ -118,4 +124,4 @@ npm run test:e2e
 
 이 GitHub 저장소는 공개 소스 저장소입니다. Sites 배포용 저장소와는 **수동으로 동기화**하며, GitHub push가 자동 동기화나 사이트 재배포를 실행하지 않습니다. `.openai/hosting.json`은 현재 Sites 프로젝트에 연결된 설정이므로, 포크를 별도 Sites 프로젝트로 배포할 때는 자신의 프로젝트 설정을 사용하세요.
 
-참고: [MDN Canvas 최적화](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas) · [Web Audio 권장 사항](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices)
+참고: [MDN WebGL 권장 사항](https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/WebGL_best_practices) · [MDN Canvas 최적화](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas) · [Web Audio 권장 사항](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices)

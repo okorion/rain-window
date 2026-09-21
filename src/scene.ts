@@ -20,6 +20,7 @@ export function drawCity(
   w: number,
   h: number,
   photo?: HTMLImageElement,
+  blur = 5,
 ) {
   if (photo) {
     const scale = resolution(w, h);
@@ -35,7 +36,7 @@ export function drawCity(
     const width = photo.naturalWidth * cover,
       height = photo.naturalHeight * cover;
     // One cached optical blur. Real architecture stays recognizable behind the glass.
-    c.filter = "blur(3px) saturate(0.72) brightness(0.72)";
+    c.filter = `blur(${blur}px) saturate(0.72) brightness(0.72)`;
     c.drawImage(photo, (w - width) / 2, (h - height) / 2, width, height);
     c.filter = "none";
     c.fillStyle = "rgba(4, 22, 34, 0.2)";
