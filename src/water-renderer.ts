@@ -24,8 +24,11 @@ varying vec2 surface;
 vec3 city(vec2 p) { return texture2D(scene, clamp(vec2(p.x, 1. - p.y), 0., 1.)).rgb; }
 void main() {
   // Gravity broadens the bottom; every cap is smooth at subpixel resolution.
-  float taper = 1. + local.y * surface.y * 0.18;
+  float impact = max(0., -surface.y);
+  float taper = 1. + local.y * max(0., surface.y) * 0.18;
   vec2 p = vec2(local.x / taper, local.y);
+  float lobes = sin(atan(p.y, p.x) * 5. + 0.7) * 0.045 * impact;
+  p /= 1. + lobes;
   float r2 = dot(p, p);
   if (r2 >= 1.) discard;
   float z = sqrt(1. - r2);
@@ -43,11 +46,12 @@ void main() {
   vec3 light = city(uv + vec2(-0.03, -0.12));
   float glint = exp(-dot(p - vec2(-0.25, 0.64), p - vec2(-0.25, 0.64)) * 32.);
   color += (light * 0.6 + vec3(0.06, 0.075, 0.08)) * glint;
+  color += vec3(0.055, 0.07, 0.075) * impact * (1. - r2);
   gl_FragColor = vec4(color, edge * surface.x);
 }
 `;
 const corners = [-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1];
-export const WATER_SPRITE_LIMIT = 5600;
+export const WATER_SPRITE_LIMIT = 5800;
 
 /** Analytic curved caps in a single batch: no low precision height-map artifacts. */
 export class WaterRenderer {

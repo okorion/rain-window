@@ -1,6 +1,7 @@
 import { seeded, resolution } from "./scene";
 import { clamp, dropLimit, FrameClock } from "./state";
 import { WaterRenderer } from "./water-renderer";
+import { Impacts, impactShape, type Impact } from "./impacts";
 
 interface Bead {
   x: number;
@@ -16,6 +17,7 @@ interface Bead {
   targetDrift: number;
   stretch: number;
   seed: number;
+  hit?: Impact;
 }
 interface Residue {
   x: number;
@@ -30,6 +32,7 @@ export class Rain {
   private drops: Bead[] = [];
   private residue: Residue[] = [];
   private random = seeded(48912);
+  private impacts = new Impacts(seeded(73810));
   private clock = new FrameClock();
   private frame = 0;
   private running = false;
@@ -58,6 +61,7 @@ export class Rain {
       this.createDrop(true),
     );
     this.residue = [];
+    this.impacts.reset();
     this.renderer.resize(w, h);
     this.clock.reset();
     this.render();
@@ -113,11 +117,39 @@ export class Rain {
   };
   private update(dt: number) {
     if (this.intensity === 0) return;
+    const arrivals = this.impacts.step(
+      dt,
+      this.intensity,
+      this.width,
+      this.height,
+    );
+    for (const hit of arrivals) {
+      // Reuse the oldest pinned bead, so arrivals never grow the main pool.
+      let index = -1;
+      for (let i = 0; i < this.drops.length; i++) {
+        const candidate = this.drops[i];
+        if (
+          !candidate.moving &&
+          (index < 0 || candidate.age > this.drops[index].age)
+        )
+          index = i;
+      }
+      if (index >= 0)
+        this.drops[index] = {
+          ...this.createDrop(false, false),
+          x: hit.x,
+          y: hit.y,
+          r: hit.r,
+          stretch: 1,
+          hit,
+        };
+    }
     for (const p of this.residue) p.life -= dt;
     this.residue = this.residue.filter((p) => p.life > 0);
     for (let i = 0; i < this.drops.length; i++) {
       const d = this.drops[i];
       d.age += dt;
+      if (d.hit && d.age > 0.48) d.hit = undefined;
       if (!d.moving) {
         if (d.age > d.life) this.drops[i] = this.createDrop(false, false);
         continue;
@@ -191,13 +223,40 @@ export class Rain {
         Math.min(1, p.life * 2) * 0.22,
       );
     for (const d of this.drops) {
-      const growth = Math.min(1, d.age / 0.8);
+      const growth = d.hit ? 1 : Math.min(1, d.age / 0.35);
       const fade = d.moving ? 1 : Math.min(1, (d.life - d.age) / 2);
       const r = d.r * growth * Math.max(0, fade);
       const stretch = d.moving
         ? 1.15 + Math.min(0.6, d.speed / 170)
         : d.stretch;
-      this.renderer.bead(d.x, d.y, r, r * stretch, 0.95, d.moving ? 1 : 0.25);
+      if (d.hit) {
+        const shape = impactShape(d.age);
+        this.renderer.bead(
+          d.x,
+          d.y,
+          r * shape.spread,
+          r * shape.spread * shape.flatten,
+          0.94,
+          -shape.irregularity,
+        );
+      } else
+        this.renderer.bead(d.x, d.y, r, r * stretch, 0.95, d.moving ? 1 : 0.25);
+    }
+    for (const hit of this.impacts.items) {
+      const t = Math.min(1, hit.age / 0.13);
+      const travel = 1 - (1 - t) ** 3;
+      const opacity =
+        Math.min(1, hit.age / 0.025) * Math.max(0, 1 - hit.age / 0.48);
+      for (const fleck of hit.satellites)
+        this.renderer.bead(
+          hit.x + Math.cos(fleck.angle) * fleck.distance * travel,
+          hit.y +
+            Math.sin(fleck.angle) * fleck.distance * travel +
+            hit.age * hit.age * 9,
+          fleck.r,
+          fleck.r * (1.15 - t * 0.15),
+          opacity * 0.7,
+        );
     }
     this.renderer.render();
   }
@@ -207,5 +266,6 @@ export class Rain {
     this.renderer.destroy();
     this.drops = [];
     this.residue = [];
+    this.impacts.reset();
   }
 }

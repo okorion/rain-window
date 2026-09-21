@@ -171,7 +171,7 @@ if (import.meta.hot)
 resize();
 sync();
 const backgroundPhoto = new Image();
-backgroundPhoto.src = "/images/tokyo-street.jpg";
+backgroundPhoto.src = "/images/city-highrise.jpg";
 void backgroundPhoto
   .decode()
   .then(() => {

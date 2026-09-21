@@ -28,7 +28,7 @@ test("실제 도시 사진과 기본 물방울의 가시 면적", async ({ page 
 });
 
 test("사진 로딩 실패에도 기본 야경과 비 조작 유지", async ({ page }) => {
-  await page.route("**/images/tokyo-street.jpg", (route) => route.abort());
+  await page.route("**/images/city-highrise.jpg", (route) => route.abort());
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute(
     "data-background",
