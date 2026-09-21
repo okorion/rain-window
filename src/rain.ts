@@ -53,18 +53,31 @@ export class Rain {
     this.render();
   }
   private createDrop(initial = false, forceMoving = false): Drop {
-    const moving = forceMoving || this.random() > 0.88;
-    return {
+    const moving = forceMoving || this.random() > 0.82;
+    const drop: Drop = {
       x: this.random() * this.width,
       y: initial ? this.random() * this.height : -15,
-      r: moving ? 2.5 + this.random() * 2.8 : 0.65 + this.random() ** 2 * 2.8,
-      stretch: moving ? 1.5 : 1 + this.random() * 0.4,
+      r: moving ? 4.5 + this.random() * 4 : 1.4 + this.random() ** 1.1 * 4.6,
+      stretch: moving ? 1.55 : 1 + this.random() * 0.35,
       moving,
-      wait: this.random() * 9,
+      wait: this.random() * 3,
       speed: 12 + this.random() * 24,
       phase: this.random() * Math.PI * 2,
       trail: [],
     };
+    // Existing wet tracks make the glass legible before the first animation frame.
+    if (initial && moving) {
+      const length = 35 + this.random() * 110;
+      for (let i = 0; i < 14; i++) {
+        const distance = length * (1 - i / 14);
+        drop.trail.push({
+          x: drop.x + Math.sin(distance * 0.045) * 2,
+          y: drop.y - distance,
+          life: 2 + i / 7,
+        });
+      }
+    }
+    return drop;
   }
   setIntensity(value: number) {
     this.intensity = clamp(value);
@@ -125,11 +138,11 @@ export class Rain {
       // A thin wet track persists briefly behind each travelling bead.
       if (d.trail.length > 1) {
         c.lineCap = "round";
-        c.lineWidth = d.r * 0.7;
+        c.lineWidth = d.r * 0.5;
         for (let j = 1; j < d.trail.length; j++) {
           const a = d.trail[j - 1],
             b = d.trail[j];
-          c.strokeStyle = `rgba(150,194,199,${b.life * 0.015})`;
+          c.strokeStyle = `rgba(180,211,219,${b.life * 0.045})`;
           c.beginPath();
           c.moveTo(a.x, a.y);
           c.lineTo(b.x, b.y);
@@ -142,14 +155,14 @@ export class Rain {
       c.ellipse(d.x, d.y, d.r, ry, 0, 0, Math.PI * 2);
       c.clip();
       // Cropped, enlarged background: intentionally approximate refraction.
-      const sourceR = d.r * 0.7 * this.scale;
+      const sourceR = d.r * 1.7 * this.scale;
       const sx = clamp(
-        d.x * this.scale - sourceR,
+        (d.x + d.r * 3) * this.scale - sourceR,
         0,
         Math.max(0, this.city.width - sourceR * 2),
       );
       const sy = clamp(
-        d.y * this.scale - sourceR,
+        (d.y - d.r * 2) * this.scale - sourceR,
         0,
         Math.max(0, this.city.height - sourceR * 2),
       );
@@ -170,20 +183,20 @@ export class Rain {
         d.x + d.r,
         d.y + ry,
       );
-      sheen.addColorStop(0, "#caeef044");
-      sheen.addColorStop(0.3, "#04151a30");
-      sheen.addColorStop(0.72, "#09202c99");
-      sheen.addColorStop(1, "#c7e0d454");
+      sheen.addColorStop(0, "#daf6ff88");
+      sheen.addColorStop(0.25, "#d1ecf01a");
+      sheen.addColorStop(0.65, "#031018a8");
+      sheen.addColorStop(1, "#d8e8dcaa");
       c.fillStyle = sheen;
       c.fillRect(d.x - d.r, d.y - ry, d.r * 2, ry * 2);
       c.restore();
-      c.strokeStyle = "#010c1555";
-      c.lineWidth = 0.65;
+      c.strokeStyle = "#010912b0";
+      c.lineWidth = 1.1;
       c.beginPath();
       c.ellipse(d.x, d.y, d.r, ry, 0, 0, Math.PI * 2);
       c.stroke();
-      c.strokeStyle = d.r > 2 ? "#c1dce371" : "#b5d2d44a";
-      c.lineWidth = 0.65;
+      c.strokeStyle = d.r > 2 ? "#def2f3bd" : "#bedce08a";
+      c.lineWidth = 0.9;
       c.beginPath();
       c.ellipse(
         d.x - 0.2,
@@ -196,13 +209,13 @@ export class Rain {
       );
       c.stroke();
       if (d.r > 2.6) {
-        c.fillStyle = "#d2dbcd80";
+        c.fillStyle = "#e5eee0d0";
         c.beginPath();
         c.ellipse(
           d.x + d.r * 0.17,
           d.y + ry * 0.62,
           d.r * 0.38,
-          0.55,
+          0.85,
           0,
           0,
           Math.PI * 2,

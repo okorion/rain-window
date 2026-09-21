@@ -11,7 +11,7 @@ export const audible = (s: ExperienceState) =>
 export const clamp = (n: number, min = 0, max = 1) =>
   Math.min(max, Math.max(min, n));
 export const dropLimit = (width: number, intensity: number) =>
-  Math.round((width <= 640 ? 140 : 320) * (0.28 + 0.72 * clamp(intensity)));
+  Math.round((width <= 640 ? 240 : 560) * (0.45 + 0.55 * clamp(intensity)));
 export class FrameClock {
   private last: number | null = null;
   reset() {

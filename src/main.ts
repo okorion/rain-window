@@ -40,6 +40,7 @@ const state: ExperienceState = {
 };
 let rain: Rain | null = null;
 let graphicsFailed = false;
+let photo: HTMLImageElement | undefined;
 let resizeFrame = 0;
 const icon = (path: string) =>
   `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${path}"/></svg>`;
@@ -87,7 +88,7 @@ function sync() {
 function resize() {
   if (graphicsFailed) return;
   try {
-    drawCity(city, window.innerWidth, window.innerHeight);
+    drawCity(city, window.innerWidth, window.innerHeight, photo);
     rain ??= new Rain(rainCanvas, city, graphicsFailure);
     rain.resize(window.innerWidth, window.innerHeight);
     rain.setIntensity(state.intensity);
@@ -166,3 +167,18 @@ if (import.meta.hot)
   });
 resize();
 sync();
+const backgroundPhoto = new Image();
+backgroundPhoto.src = "/images/tokyo-street.jpg";
+void backgroundPhoto
+  .decode()
+  .then(() => {
+    photo = backgroundPhoto;
+    document.documentElement.dataset.background = "photo";
+    resize();
+  })
+  .catch(() => {
+    document.documentElement.dataset.background = "fallback";
+    if (!graphicsFailed)
+      status.textContent =
+        "도시 사진을 불러오지 못해 기본 야경으로 감상합니다.";
+  });

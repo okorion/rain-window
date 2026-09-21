@@ -23,6 +23,10 @@ test("기본 무음, 세기·음량·반복 재생·정지·전체 화면", asyn
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-background",
+    /photo|fallback/,
+  );
   await expect(
     page.getByRole("button", { name: "빗소리 켜기" }),
   ).toHaveAttribute("aria-pressed", "false");
@@ -126,6 +130,10 @@ test("모바일·회전·좁은 화면에서 컨트롤과 렌더 예산", async 
   ]) {
     await page.setViewportSize({ width, height });
     await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-background",
+      /photo|fallback/,
+    );
     await expect(page.getByRole("button", { name: "일시정지" })).toBeVisible();
     const bounds = await page.locator(".controls").boundingBox();
     expect(bounds!.x).toBeGreaterThanOrEqual(0);
@@ -150,6 +158,10 @@ test("모바일·회전·좁은 화면에서 컨트롤과 렌더 예산", async 
 test("reduced-motion은 정지로 시작하고 명시적으로 재생", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-background",
+    /photo|fallback/,
+  );
   await expect(
     page.getByRole("button", { name: "재생", exact: true }),
   ).toBeVisible();
@@ -170,6 +182,10 @@ test("탭 비활성 이벤트에서 렌더 중단, 복귀와 사용자 정지 �
   page,
 }) => {
   await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-background",
+    /photo|fallback/,
+  );
   await page.evaluate(() => {
     Object.defineProperty(document, "hidden", {
       configurable: true,
@@ -211,6 +227,10 @@ test("오디오 거부에도 그래픽 유지, 재시도 가능", async ({ page 
       Promise.reject(new Error("test denial"));
   });
   await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-background",
+    /photo|fallback/,
+  );
   await page.getByRole("button", { name: "빗소리 켜기" }).click();
   await expect(page.locator(".status")).toContainText("재생하지 못했습니다");
   await expect(page.getByRole("button", { name: "빗소리 켜기" })).toBeVisible();
@@ -226,6 +246,10 @@ test("Canvas 실패 시 정적 야경과 안내", async ({ page }) => {
     HTMLCanvasElement.prototype.getContext = () => null;
   });
   await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-background",
+    /photo|fallback/,
+  );
   await expect(page.locator(".status")).toContainText("정적인 야경");
   await expect(page.locator(".fallback")).toBeVisible();
   await expect(page.locator("#rain")).toBeHidden();
@@ -236,6 +260,10 @@ test("지원하지 않는 전체 화면 숨김", async ({ page }) => {
     Object.defineProperty(document, "fullscreenEnabled", { value: false });
   });
   await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-background",
+    /photo|fallback/,
+  );
   await expect(page.locator("#fullscreen")).toBeHidden();
 });
 
@@ -245,6 +273,10 @@ test("전체 화면 거부와 렌더 context 상실 처리", async ({ page }) =>
       Promise.reject(new Error("test denial"));
   });
   await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-background",
+    /photo|fallback/,
+  );
   await page.getByRole("button", { name: "전체 화면", exact: true }).click();
   await expect(page.locator(".status")).toContainText(
     "전체 화면으로 전환할 수 없습니다",
@@ -259,6 +291,10 @@ test("전체 화면 거부와 렌더 context 상실 처리", async ({ page }) =>
 
 test("실제 화면 캡처", async ({ page }) => {
   await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-background",
+    /photo|fallback/,
+  );
   await page.waitForTimeout(3500);
   await page.screenshot({ path: "docs/screenshots/desktop.png" });
   await page.setViewportSize({ width: 390, height: 844 });

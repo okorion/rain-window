@@ -33,9 +33,9 @@ describe("감상 상태와 성능 경계", () => {
     expect(audible({ ...chosen, paused: false })).toBe(true);
   });
   it("물방울 밀도 상한", () => {
-    expect(dropLimit(390, 1)).toBe(140);
-    expect(dropLimit(1440, 1)).toBe(320);
-    expect(dropLimit(1440, 2)).toBe(320);
+    expect(dropLimit(390, 1)).toBe(240);
+    expect(dropLimit(1440, 1)).toBe(560);
+    expect(dropLimit(1440, 2)).toBe(560);
     expect(dropLimit(1440, 0)).toBeGreaterThan(0);
   });
   it("고해상도에서 픽셀 예산 제한", () => {

@@ -15,7 +15,33 @@ export function resolution(
     Math.sqrt((w <= 640 ? 1_000_000 : 2_100_000) / (w * h)),
   );
 }
-export function drawCity(canvas: HTMLCanvasElement, w: number, h: number) {
+export function drawCity(
+  canvas: HTMLCanvasElement,
+  w: number,
+  h: number,
+  photo?: HTMLImageElement,
+) {
+  if (photo) {
+    const scale = resolution(w, h);
+    canvas.width = Math.floor(w * scale);
+    canvas.height = Math.floor(h * scale);
+    const c = canvas.getContext("2d");
+    if (!c) throw new Error("Canvas unavailable");
+    c.setTransform(scale, 0, 0, scale, 0, 0);
+    const cover = Math.max(
+      (w + 24) / photo.naturalWidth,
+      (h + 24) / photo.naturalHeight,
+    );
+    const width = photo.naturalWidth * cover,
+      height = photo.naturalHeight * cover;
+    // One cached optical blur. Real architecture stays recognizable behind the glass.
+    c.filter = "blur(3px) saturate(0.72) brightness(0.72)";
+    c.drawImage(photo, (w - width) / 2, (h - height) / 2, width, height);
+    c.filter = "none";
+    c.fillStyle = "rgba(4, 22, 34, 0.2)";
+    c.fillRect(0, 0, w, h);
+    return;
+  }
   const scale = resolution(w, h);
   canvas.width = Math.floor(w * scale);
   canvas.height = Math.floor(h * scale);
